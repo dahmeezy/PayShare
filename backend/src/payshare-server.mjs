@@ -8,6 +8,7 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { config } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
+import { moneyRouter } from "./money-api.mjs";
 
 const { network, usdc, facilitator: fac } = config;
 
@@ -89,6 +90,9 @@ app.get("/catalog", (_req, res) => {
         routes: PROJECT.workers.map((w) => ({ path: `/paid/deliverable/${w.id}`, worker: w.name, priceUsd: w.allocation })),
     });
 });
+
+// ── Money API for the frontend (role-filtered) ──
+app.use("/api", moneyRouter);
 
 app.listen(config.port, () => {
     console.log(`\nPayShare API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);
