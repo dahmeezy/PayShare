@@ -1,0 +1,107 @@
+// The PayShare Agent: pays each worker's deliverable over x402, but only when the rules allow it.
+// Usage:  node src/payshare-agent.mjs status    (see who is paid)
+//         node src/payshare-agent.mjs confirm   (stand-in for the client's "work completed" button)
+//         node src/payshare-agent.mjs pay       (the agent runs the payouts)
+//         node src/payshare-agent.mjs reset     (start over: testnet only)
+import fs from "node:fs/promises";
+import { wrapFetchWithPaymentFromConfig, decodePaymentResponseHeader } from "@x402/fetch";
+import { createEd25519Signer } from "@x402/stellar";
+import { ExactStellarScheme } from "@x402/stellar/exact/client";
+import { config, explorer } from "./config.mjs";
+import { PROJECT } from "./project.mjs";
+
+const STATE_FILE = "payshare-state.json";
+
+// ── State: who has been paid. Lives in a local file so a re-run remembers. ──
+const freshState = () => ({
+  clientConfirmed: false,
+  payouts: Object.fromEntries(PROJECT.workers.map((w) => [w.id, { status: "pending" }])),
+});
+async function readState() {
+  try { return JSON.parse(await fs.readFile(STATE_FILE, "utf8")); }
+  catch { return freshState(); }
+}
+const saveState = (s) => fs.writeFile(STATE_FILE, JSON.stringify(s, null, 2));
+
+// ── Commands ──
+async function status() {
+  const s = await readState();
+  console.log(`\n${PROJECT.name}`);
+  console.log(`Client confirmed the work: ${s.clientConfirmed ? "yes" : "no"}\n`);
+  for (const w of PROJECT.workers) {
+    const p = s.payouts[w.id] ?? { status: "pending" };
+    console.log(`${w.name.padEnd(6)} ${String(w.allocation).padStart(4)} USDC  ${p.status}${p.tx ? `  ${explorer.tx(p.tx)}` : ""}${p.error ? `  (${p.error})` : ""}`);
+  }
+  console.log();
+}
+
+async function confirm() {
+  const s = await readState();
+  s.clientConfirmed = true;
+  await saveState(s);
+  console.log("✓ Client confirmed the work. The agent may now pay.");
+}
+
+async function pay() {
+  const s = await readState();
+
+  // GATE 1: no payment until the client has confirmed.
+  if (!s.clientConfirmed) {
+    console.log("✗ Not paying: the client hasn't confirmed the work yet.\n  Run: node src/payshare-agent.mjs confirm");
+    return;
+  }
+
+  const signer = createEd25519Signer(config.agentSecret, config.network);
+
+  for (const w of PROJECT.workers) {
+    s.payouts[w.id] ??= { status: "pending" };
+    const p = s.payouts[w.id];
+
+    // GATE 2: never pay twice.
+    if (p.status === "paid") { console.log(`↷ ${w.name}: already paid, skipping`); continue; }
+    if (p.status === "processing") {
+      console.log(`⚠ ${w.name}: a previous run didn't finish. Check the explorer before retrying (the agent won't guess).`);
+      continue;
+    }
+
+    // Write "processing" to the file BEFORE sending, so even a crash can't lead to a double payment.
+    p.status = "processing";
+    await saveState(s);
+
+    try {
+      // GATE 3: pay at most this worker's agreed allocation. If the server quotes more, nothing is signed.
+      const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
+        schemes: [{ network: config.network, client: new ExactStellarScheme(signer, { url: config.rpcUrl }) }],
+        spendControls: { maxAmountPerPayment: `$${w.allocation}` },
+      });
+      const res = await paidFetch(`${config.apiBaseUrl}/paid/deliverable/${w.id}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const header = res.headers.get("PAYMENT-RESPONSE");
+      const settlement = header ? decodePaymentResponseHeader(header) : null;
+      if (!settlement?.success) throw new Error("payment did not settle");
+
+      p.status = "paid";
+      p.tx = settlement.transaction;
+      p.paidAt = new Date().toISOString();
+      delete p.error;
+      console.log(`✓ ${w.name}: paid ${w.allocation} USDC  ${explorer.tx(p.tx)}`);
+    } catch (e) {
+      p.status = "failed"; // safe to retry: the payment did not go through
+      p.error = e.message;
+      console.log(`✗ ${w.name}: ${e.message}`);
+    }
+    await saveState(s);
+  }
+  console.log("\nRun 'status' to see the summary.");
+}
+
+async function reset() {
+  await saveState(freshState());
+  console.log("✓ State reset. (Testnet only: this does not undo any payments.)");
+}
+
+const commands = { status, confirm, pay, reset };
+const run = commands[process.argv[2]];
+if (!run) { console.log("Usage: node src/payshare-agent.mjs status | confirm | pay | reset"); process.exit(1); }
+await run();
