@@ -1,4 +1,4 @@
-import { Keypair, StrKey } from "@stellar/stellar-sdk";
+import { Asset, Keypair } from "@stellar/stellar-sdk";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients, validateUsdcConfig } from "../src/payout-validation.mjs";
@@ -94,12 +94,14 @@ test("USDC configuration requires valid Stellar identifiers", () => {
   const valid = {
     code: "USDC",
     issuer: Keypair.fromRawEd25519Seed(Buffer.alloc(32, 3)).publicKey(),
-    contractId: StrKey.encodeContract(Buffer.alloc(32, 4)),
+    contractId: new Asset("USDC", Keypair.fromRawEd25519Seed(Buffer.alloc(32, 3)).publicKey()).contractId("Test SDF Network ; September 2015"),
     decimals: 7,
   };
-  assert.equal(validateUsdcConfig(valid), true);
-  assert.throws(() => validateUsdcConfig({ ...valid, code: "XLM" }), /USDC asset code/);
-  assert.throws(() => validateUsdcConfig({ ...valid, issuer: "bad" }), /issuer/);
-  assert.throws(() => validateUsdcConfig({ ...valid, contractId: "bad" }), /contract ID/);
-  assert.throws(() => validateUsdcConfig({ ...valid, decimals: 6 }), /7 decimals/);
+  const passphrase = "Test SDF Network ; September 2015";
+  assert.equal(validateUsdcConfig(valid, passphrase), true);
+  assert.throws(() => validateUsdcConfig({ ...valid, code: "XLM" }, passphrase), /USDC asset code/);
+  assert.throws(() => validateUsdcConfig({ ...valid, issuer: "bad" }, passphrase), /issuer/);
+  assert.throws(() => validateUsdcConfig({ ...valid, contractId: "bad" }, passphrase), /contract ID/);
+  assert.throws(() => validateUsdcConfig({ ...valid, decimals: 6 }, passphrase), /7 decimals/);
+  assert.throws(() => validateUsdcConfig(valid, "Public Global Stellar Network ; September 2015"), /does not match/);
 });
