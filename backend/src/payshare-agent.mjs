@@ -9,7 +9,7 @@ import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config, explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
-import { validateSettlement } from "./payout-validation.mjs";
+import { validateSettlement, canResetPayouts } from "./payout-validation.mjs";
 
 const STATE_FILE = "payshare-state.json";
 
@@ -100,6 +100,8 @@ async function pay() {
 }
 
 async function reset() {
+  const current = await readState();
+  canResetPayouts(current);
   await saveState(freshState());
   console.log("✓ State reset. (Testnet only: this does not undo any payments.)");
 }
