@@ -110,3 +110,29 @@ export function requireTestnet(network, passphrase) {
   }
   return true;
 }
+
+/**
+ * Refuse ambiguous worker payout instructions before any payment is signed.
+ * A wallet may only appear once in this single-project demo.
+ */
+export function validateWorkerRecipients(workers) {
+  if (!Array.isArray(workers) || workers.length === 0) throw new Error("No workers configured");
+  const ids = new Set();
+  const wallets = new Set();
+  for (const worker of workers) {
+    if (typeof worker?.id !== "string" || !worker.id.trim()) throw new Error("Worker ID is required");
+    if (typeof worker.wallet !== "string" || !/^G[A-Z2-7]{55}$/.test(worker.wallet)) {
+      throw new Error(`Invalid Stellar wallet for worker ${worker.id}`);
+    }
+    if (ids.has(worker.id)) throw new Error(`Duplicate worker ID: ${worker.id}`);
+    if (wallets.has(worker.wallet)) throw new Error(`Duplicate worker wallet: ${worker.wallet}`);
+    if (typeof worker.allocation !== "number" || !Number.isFinite(worker.allocation) ||
+        worker.allocation <= 0 || !Number.isSafeInteger(Math.round(worker.allocation * 100)) ||
+        Math.abs(worker.allocation * 100 - Math.round(worker.allocation * 100)) > 0.000001) {
+      throw new Error(`Invalid allocation for worker ${worker.id}`);
+    }
+    ids.add(worker.id);
+    wallets.add(worker.wallet);
+  }
+  return true;
+}
