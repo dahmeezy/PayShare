@@ -115,4 +115,4 @@ moneyRouter.get("/projects/:id/payments", withPayouts((req, res, payouts) => {
     // Workers get their own payments plus overall progress only (Privacy Matrix)
     progress: { paid: all.filter((p) => p.status === "paid").length, total: all.length },
   });
-});
+}));
