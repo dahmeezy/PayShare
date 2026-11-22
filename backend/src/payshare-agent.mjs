@@ -54,10 +54,11 @@ async function withPayoutLock(action) {
 // ── Commands ──
 async function status() {
   const s = await readState();
+  validatePayoutHistory(s, PROJECT.workers.map((w) => w.id));
   console.log(`\n${PROJECT.name}`);
   console.log(`Client confirmed the work: ${s.clientConfirmed ? "yes" : "no"}\n`);
   for (const w of PROJECT.workers) {
-    const p = s.payouts[w.id] ?? { status: "pending" };
+    const p = s.payouts[w.id];
     console.log(`${w.name.padEnd(6)} ${String(w.allocation).padStart(4)} USDC  ${p.status}${p.tx ? `  ${explorer.tx(p.tx)}` : ""}${p.error ? `  (${p.error})` : ""}`);
   }
   console.log();
