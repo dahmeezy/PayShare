@@ -186,3 +186,19 @@ export function requireValidPayouts(state, workerIds) {
   validatePayoutHistory(state, workerIds);
   return state.payouts;
 }
+
+/** All money API amounts are integer cents; processing is not paid. */
+export function summarizePayoutCents(workers, payouts) {
+  let paid = 0;
+  let verifying = 0;
+  let pending = 0;
+  for (const worker of workers) {
+    const amount = Math.round(worker.allocation * 100);
+    const status = payouts[worker.id]?.status;
+    if (status === "paid") paid += amount;
+    else if (status === "processing") verifying += amount;
+    else if (status === "pending" || status === "failed") pending += amount;
+    else throw new Error(`Unknown payout status for ${worker.id}`);
+  }
+  return { paid, verifying, pending };
+}
