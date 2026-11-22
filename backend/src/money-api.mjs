@@ -1,136 +1,120 @@
-// PayShare money API (read side): the endpoints the frontend needs first.
-// Implements, from docs/API_CONTRACT.md: H2 money-summary, allocations, payments.
-// Amounts are in cents, as the contract says. The privacy rules are enforced HERE, not in the screens.
-import fs from "node:fs/promises";
-import { Router } from "express";
-import { explorer } from "./config.mjs";
-import { PROJECT } from "./project.mjs";
-import { validateFundingRequest, readFundingRequests, saveFundingRequest } from "./funding.mjs";
+import { addFundingRoutes } from "./funding-api.mjs";
+// Worker privacy is applied to responses on the server.
+import express from "express";
+import { randomUUID } from "node:crypto";
+import { budgetBreakdown, toCents } from "./budget.mjs";
+import { authenticateProject, requireRole } from "./project-auth.mjs";
+import { currentProject, projectError, readProjectState, updateProjectState } from "./project-store.mjs";
 
-const PROJECT_ID = "proj_demo"; // TODO: real project ids once the projects feature exists
-const STATE_FILE = "payshare-state.json"; // written by the payout agent (run both from the backend folder)
-const cents = (usd) => Math.round(usd * 100);
+export const moneyRouter = express.Router();
+moneyRouter.use(express.json({ limit: "16kb" }));
+moneyRouter.use(authenticateProject);
+moneyRouter.param("id", (req, res, next, id) =>
+  id === req.auth.projectId ? next() : res.status(404).json({ error: "Project not found" }));
 
-async function readPayouts() {
-  try { return JSON.parse(await fs.readFile(STATE_FILE, "utf8")).payouts ?? {}; }
-  catch { return {}; }
-}
+export const endpoint = (fn) => (req, res, next) => Promise.resolve().then(() => fn(req, res)).catch(next);
+const isWorker = (req) => req.auth.role === "worker";
+const own = (req, worker) => !isWorker(req) || worker.id === req.auth.workerId;
+export const validCents = (amount) => Number.isSafeInteger(amount) && amount >= 0;
 
-export const moneyRouter = Router();
-
-// Local-dev CORS so the frontend (another port) can call us. Remove or tighten before any real deployment.
-moneyRouter.use((req, res, next) => {
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Headers", "content-type, x-demo-role, x-demo-worker");
-  if (req.method === "OPTIONS") return res.sendStatus(204);
-  next();
-});
-
-// Stand-in for login until feature/auth exists. The caller says who they are via headers:
-//   x-demo-role: contractor | client | worker      x-demo-worker: amara | bisi | chidi (workers only)
-// The permission rules below don't change when real auth replaces this.
-moneyRouter.use((req, res, next) => {
-  const role = req.get("x-demo-role");
-  if (!["contractor", "client", "worker"].includes(role)) {
-    return res.status(401).json({ error: "unauthenticated: send header x-demo-role (contractor, client or worker)" });
+moneyRouter.get("/projects/:id/money-summary", endpoint(async (req, res) => {
+  const state = await readProjectState();
+  const budget = budgetBreakdown(currentProject(state), state.payouts);
+  const funded = state.funding.filter((record) => record.status === "confirmed")
+    .reduce((sum, record) => sum + record.amount, 0);
+  if (isWorker(req)) {
+    for (const key of ["contractor_comp", "allocated", "paid", "pending", "unallocated", "remaining"]) delete budget[key];
+  } else {
+    budget.remaining = Math.max(0, funded - budget.expenses - budget.contractor_comp - budget.allocated);
   }
-  const workerId = req.get("x-demo-worker");
-  if (role === "worker" && !PROJECT.workers.some((w) => w.id === workerId)) {
-    return res.status(401).json({ error: "workers must also send header x-demo-worker (amara, bisi or chidi)" });
-  }
-  req.auth = { role, workerId };
-  next();
-});
+  res.json({ ...budget, funded });
+}));
 
-moneyRouter.param("id", (req, res, next, id) => {
-  if (id !== PROJECT_ID) return res.status(404).json({ error: "project not found" });
-  next();
-});
-
-// Workers see only their own line; contractor and client see everyone's.
-const visibleWorkers = (auth) =>
-  auth.role === "worker" ? PROJECT.workers.filter((w) => w.id === auth.workerId) : PROJECT.workers;
-
-// H2: GET /projects/{id}/money-summary
-moneyRouter.get("/projects/:id/money-summary", async (req, res) => {
-  const payouts = await readPayouts();
-  const totalBudget = cents(PROJECT.budget);
-  const expenses = cents(PROJECT.expenses);
-  const contractorComp = cents(PROJECT.contractorPay);
-  const workerPool = totalBudget - expenses - contractorComp;
-  const funded = 0; // Funding requests are not verified payments
-  const allocated = PROJECT.workers.reduce((sum, w) => sum + cents(w.allocation), 0);
-  const paid = PROJECT.workers.filter((w) => payouts[w.id]?.status === "paid").reduce((sum, w) => sum + cents(w.allocation), 0);
-  const pending = allocated - paid;
-  const isWorker = req.auth.role === "worker";
-  res.json({
-    total_budget: totalBudget,
-    funded,
-    expenses,
-    contractor_comp: isWorker ? null : contractorComp, // never shown to workers
-    worker_pool: workerPool,
-    paid,
-    pending,
-    remaining: isWorker ? null : Math.max(0, funded - paid - pending), // not listed for workers in the MVP (Privacy Matrix)
-  });
-});
-
-// GET /projects/{id}/allocations
-moneyRouter.get("/projects/:id/allocations", async (req, res) => {
-  const payouts = await readPayouts();
-  res.json(visibleWorkers(req.auth).map((w) => ({
-    allocation_id: `alloc_${w.id}`,
-    worker_id: w.id,
-    worker_name: w.name,
-    task: w.task,
-    amount: cents(w.allocation),
-    status: payouts[w.id]?.status ?? "pending",
+moneyRouter.get("/projects/:id/expenses", endpoint(async (req, res) => {
+  const project = currentProject(await readProjectState());
+  res.json(isWorker(req) ? { total: budgetBreakdown(project).expenses } : project.expenses.map((e) => ({
+    ...e, amount: toCents(e.amount),
   })));
-});
+}));
 
-// GET /projects/{id}/payments
-moneyRouter.get("/projects/:id/payments", async (req, res) => {
-  const payouts = await readPayouts();
-  const all = PROJECT.workers.map((w) => {
-    const p = payouts[w.id] ?? { status: "pending" };
-    return {
-      payment_id: `pay_${w.id}`,
-      worker_id: w.id,
-      worker_name: w.name,
-      amount: cents(w.allocation),
-      status: p.status,
-      transaction: p.tx ?? null,
-      explorer_url: p.tx ? explorer.tx(p.tx) : null,
-      paid_at: p.paidAt ?? null,
-    };
+moneyRouter.post("/expenses", endpoint(async (req, res) => {
+  requireRole(req, "contractor");
+  const { amount, description, approved } = req.body ?? {};
+  if (!validCents(amount) || amount === 0 || typeof description !== "string" || !description.trim() ||
+      typeof approved !== "boolean") throw projectError("Provide expense cents, a description and approval status");
+  const entry = { id: randomUUID(), amount, description: description.trim(), approved };
+  await updateProjectState((state) => {
+    state.expenses.push(entry);
+    budgetBreakdown(currentProject(state));
   });
-  const mine = req.auth.role === "worker" ? all.filter((p) => p.worker_id === req.auth.workerId) : all;
+  res.status(201).json(entry);
+}));
+
+moneyRouter.get("/projects/:id/contractor-compensation", endpoint(async (req, res) => {
+  res.json(isWorker(req) ? null : { amount: toCents(currentProject(await readProjectState()).contractorPay), paid: false });
+}));
+
+moneyRouter.put("/projects/:id/contractor-compensation", endpoint(async (req, res) => {
+  requireRole(req, "contractor");
+  const amount = req.body?.amount;
+  if (!validCents(amount)) throw projectError("Provide compensation in cents");
+  await updateProjectState((state) => {
+    state.contractorCompensation = amount;
+    budgetBreakdown(currentProject(state));
+  });
+  res.json({ amount, paid: false });
+}));
+
+moneyRouter.get("/projects/:id/allocations", endpoint(async (req, res) => {
+  const state = await readProjectState();
+  res.json(currentProject(state).workers.filter((worker) => own(req, worker)).map((worker) => ({
+    allocation_id: `alloc_${worker.id}`, worker_id: worker.id, worker_name: worker.name, task: worker.task,
+    amount: toCents(worker.allocation), status: state.payouts[worker.id].status,
+  })));
+}));
+
+moneyRouter.post("/allocations", endpoint(async (req, res) => {
+  requireRole(req, "contractor");
+  const { worker_id: workerId, amount } = req.body ?? {};
+  if (!validCents(amount) || amount === 0) throw projectError("Allocation must be positive cents");
+  const entry = await updateProjectState((state) => {
+    const worker = currentProject(state).workers.find(({ id }) => id === workerId);
+    if (!worker) throw projectError("Worker not found", 404);
+    if (worker.allocation || state.tasks[workerId] || state.payouts[workerId].status !== "pending") {
+      throw projectError("Use an allocation change proposal for an existing agreement", 409);
+    }
+    state.allocations[workerId] = amount;
+    budgetBreakdown(currentProject(state));
+    return { allocation_id: `alloc_${workerId}`, worker_id: workerId, amount };
+  });
+  res.status(201).json(entry);
+}));
+
+const paymentList = endpoint(async (req, res) => {
+  const state = await readProjectState();
+  const all = currentProject(state).workers;
   res.json({
-    payments: mine,
-    // Workers get their own payments plus overall progress only (Privacy Matrix)
-    progress: { paid: all.filter((p) => p.status === "paid").length, total: all.length },
+    payments: all.filter((worker) => own(req, worker)).map((worker) => {
+      const p = state.payouts[worker.id];
+      return {
+        payment_id: `pay_${worker.id}`, worker_id: worker.id, worker_name: worker.name,
+        amount: p.amount ?? toCents(worker.allocation), status: p.status,
+        transaction: p.tx ?? null,
+        explorer_url: p.tx && /^[a-f0-9]{64}$/i.test(p.tx) ? `https://stellar.expert/explorer/testnet/tx/${p.tx}` : null,
+        paid_at: p.paidAt ?? null,
+      };
+    }).filter((payment) => (!req.query.worker_id || payment.worker_id === req.query.worker_id) &&
+      (!req.query.status || payment.status === req.query.status) &&
+      (!req.query.task_id || req.query.task_id === payment.worker_id)),
+    progress: { paid: all.filter((worker) => state.payouts[worker.id].status === "paid").length, total: all.length },
   });
 });
-moneyRouter.post("/funding", async (req, res) => {
-  if (process.env.ENABLE_DEMO_FUNDING !== "true" || process.env.NODE_ENV === "production") {
-    return res.status(403).json({ error: "Demo funding requests are disabled" });
-  }
-  if (req.auth.role !== "client") return res.status(403).json({ error: "client only" });
-  let request;
-  try { request = validateFundingRequest(req.body); }
-  catch (error) { return res.status(400).json({ error: error.message }); }
-  try { res.status(201).json(await saveFundingRequest(request)); }
-  catch { res.status(500).json({ error: "could not save funding request" }); }
-});
+moneyRouter.get("/projects/:id/payments", paymentList);
+moneyRouter.get("/payments", paymentList);
+addFundingRoutes(moneyRouter, endpoint);
 
-moneyRouter.get("/projects/:id/funding", async (req, res) => {
-  try {
-    const requests = await readFundingRequests();
-    res.json({
-      verified_amount: 0,
-      requests: req.auth.role === "worker"
-        ? requests.map((r) => ({ amount: r.amount, status: r.status }))
-        : requests,
-    });
-  } catch { res.status(500).json({ error: "could not read funding requests" }); }
-});
+export function moneyErrors(error, req, res, next) {
+  if (res.headersSent) return next(error);
+  const status = error.status || 503;
+  res.status(status).json({ error: status >= 500 ? "Project data is temporarily unavailable" : error.message });
+}

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { validateFundingRequest } from "../src/funding.mjs";
 
-const address = "G" + "A".repeat(55);
+const address = "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
 
 test("accepts a valid funding request as a request only", () => {
   assert.deepEqual(validateFundingRequest({ amount: 1000, funding_address: address }), {
