@@ -51,3 +51,27 @@ export function validatePayoutHistory(state, workerIds) {
   }
   return true;
 }
+
+/**
+ * Confirm that a reported settlement exists and succeeded on Stellar Horizon.
+ * This only confirms transaction success, not the worker or token amount.
+ */
+export async function verifyTransactionOnHorizon(hash, horizonUrl, fetcher = fetch) {
+  if (typeof hash !== "string" || !/^[a-fA-F0-9]{64}$/.test(hash)) {
+    throw new Error("Invalid Stellar transaction hash");
+  }
+  const url = new URL(horizonUrl);
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname))) {
+    throw new Error("Horizon URL must use HTTPS");
+  }
+  const response = await fetcher(`${url.href.replace(/\/$/, "")}/transactions/${hash}`, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) throw new Error(`Horizon transaction lookup failed: HTTP ${response.status}`);
+  const tx = await response.json();
+  if (tx.hash?.toLowerCase() !== hash.toLowerCase() || tx.successful !== true) {
+    throw new Error("Horizon did not confirm a successful matching transaction");
+  }
+  return tx.hash;
+}
