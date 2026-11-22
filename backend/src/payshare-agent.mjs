@@ -21,7 +21,7 @@ const freshState = () => ({
 async function readState() {
   try { return JSON.parse(await fs.readFile(STATE_FILE, "utf8")); }
   catch (error) {
-    if (error.code === "ENOENT") return freshState();
+    if (error.code === "ENOENT") throw new Error("Payout history missing. Run init for a new testnet project; never reinitialize after real payments.");
     throw new Error("Cannot read payout history; refusing to continue", { cause: error });
   }
 }
@@ -134,6 +134,14 @@ async function pay() {
   console.log("\nRun 'status' to see the summary.");
 }
 
+async function init() {
+  if (process.env.NODE_ENV === "production") throw new Error("Demo initialization is disabled in production");
+  const file = await fs.open(STATE_FILE, "wx", 0o600);
+  try { await file.writeFile(JSON.stringify(freshState(), null, 2)); }
+  finally { await file.close(); }
+  console.log("Created new demo payout history. Never initialize again after a real payout.");
+}
+
 async function reset() {
   const current = await readState();
   validatePayoutHistory(current, PROJECT.workers.map((w) => w.id));
@@ -142,7 +150,7 @@ async function reset() {
   console.log("✓ State reset. (Testnet only: this does not undo any payments.)");
 }
 
-const commands = { status, confirm, pay, reset };
+const commands = { status, init, confirm, pay, reset };
 const run = commands[process.argv[2]];
-if (!run) { console.log("Usage: node src/payshare-agent.mjs status | confirm | pay | reset"); process.exit(1); }
+if (!run) { console.log("Usage: node src/payshare-agent.mjs status | init | confirm | pay | reset"); process.exit(1); }
 await (process.argv[2] === "status" ? run() : withPayoutLock(run));
