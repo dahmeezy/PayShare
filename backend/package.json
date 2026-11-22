@@ -13,7 +13,7 @@
     "agent": "node src/agent.mjs",
     "console": "node src/console/app.mjs",
     "start": "node scripts/start.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test"
   },
   "engines": {
     "node": ">=22"

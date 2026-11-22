@@ -150,3 +150,27 @@ test("API rejects missing or corrupted payout history instead of inventing payme
     ...valid, payouts: { ...valid.payouts, amara: { status: "paid" } },
   }, ids), /no valid transaction hash/);
 });
+
+test("a global demo flag cannot authorize payouts and recorded funding is required", async () => {
+  const { payoutEligibility } = await import("../src/payout-eligibility.mjs");
+  const { PROJECT } = await import("../src/project.mjs");
+  const wallet = Keypair.random().publicKey();
+  const payer = Keypair.random().publicKey();
+  PROJECT.workers[0].wallet = wallet;
+  const state = {
+    clientConfirmed: true, expenses: [], allocations: {}, funding: [], tasks: {},
+    payouts: Object.fromEntries(PROJECT.workers.map((worker) => [worker.id, { status: "pending" }])),
+  };
+  assert.equal(payoutEligibility(state, "amara", payer).eligible, false);
+  state.tasks.amara = { status: "approved", terms_amount: 150, history: [{ action: "worker_accepted" }] };
+  assert.match(payoutEligibility(state, "amara", payer).reasons.join(" "), /funds/);
+  state.funding.push({ status: "confirmed", amount: 1000, recipient: payer });
+  assert.equal(payoutEligibility(state, "amara", payer, 15_000_000n).eligible, true);
+  assert.equal(payoutEligibility(state, "amara", payer, 14_999_999n).eligible, false);
+  state.tasks.amara.requires_client = true;
+  assert.equal(payoutEligibility(state, "amara", payer).eligible, false);
+  state.tasks.amara.client_confirmed = true;
+  assert.equal(payoutEligibility(state, "amara", payer).eligible, true);
+  state.payouts.amara.status = "processing";
+  assert.equal(payoutEligibility(state, "amara", payer).eligible, false);
+});

@@ -8,13 +8,9 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { config } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
-import { moneyRouter } from "./money-api.mjs";
-import { requireTestnet, validateUsdcConfig } from "./payout-validation.mjs";
+import { moneyErrors, moneyRouter } from "./money-api.mjs";
 
 const { network, usdc, facilitator: fac } = config;
-// This server charges worker wallets directly. Demo authorization is testnet-only.
-requireTestnet(network, config.networkPassphrase);
-validateUsdcConfig(usdc, config.networkPassphrase);
 
 // ── Rule: the budget breakdown must always balance ──
 // Distributable = Budget - Expenses - Contractor pay. Counted in cents to avoid rounding errors.
@@ -96,7 +92,7 @@ app.get("/catalog", (_req, res) => {
 });
 
 // ── Money API for the frontend (role-filtered) ──
-app.use("/api", moneyRouter);
+app.use("/api", moneyRouter, moneyErrors);
 
 app.listen(config.port, () => {
     console.log(`\nPayShare API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);

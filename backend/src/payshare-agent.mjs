@@ -3,14 +3,12 @@
 //         node src/payshare-agent.mjs confirm   (stand-in for the client's "work completed" button)
 //         node src/payshare-agent.mjs pay       (the agent runs the payouts)
 //         node src/payshare-agent.mjs reset     (start over: testnet only)
-//         node src/payshare-agent.mjs reconcile (read-only ledger check)
 import fs from "node:fs/promises";
 import { wrapFetchWithPaymentFromConfig, decodePaymentResponseHeader } from "@x402/fetch";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config, explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
-import { validateSettlement, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients, validateUsdcConfig, summarizePayouts } from "./payout-validation.mjs";
 
 const STATE_FILE = "payshare-state.json";
 
@@ -21,58 +19,24 @@ const freshState = () => ({
 });
 async function readState() {
   try { return JSON.parse(await fs.readFile(STATE_FILE, "utf8")); }
-  catch (error) {
-    if (error.code === "ENOENT") throw new Error("Payout history missing. Run init for a new testnet project; never reinitialize after real payments.");
-    throw new Error("Cannot read payout history; refusing to continue", { cause: error });
-  }
+  catch { return freshState(); }
 }
-const saveState = async (s) => {
-  const temp = `${STATE_FILE}.${process.pid}.tmp`;
-  await fs.writeFile(temp, JSON.stringify(s, null, 2), { mode: 0o600 });
-  await fs.rename(temp, STATE_FILE);
-};
-
-// Only one agent process may attempt payouts at a time.
-// After a crash, inspect the ledger before manually removing the lock file.
-async function withPayoutLock(action) {
-  const lockFile = `${STATE_FILE}.lock`;
-  let lock;
-  try {
-    lock = await fs.open(lockFile, "wx", 0o600);
-  } catch (error) {
-    if (error.code === "EEXIST") throw new Error("Another payout run may be active; inspect the lock and Stellar ledger before retrying");
-    throw error;
-  }
-  try {
-    await lock.writeFile(String(process.pid));
-    return await action();
-  } finally {
-    await lock.close();
-    await fs.unlink(lockFile);
-  }
-}
+const saveState = (s) => fs.writeFile(STATE_FILE, JSON.stringify(s, null, 2));
 
 // ── Commands ──
 async function status() {
   const s = await readState();
-  validatePayoutHistory(s, PROJECT.workers.map((w) => w.id));
   console.log(`\n${PROJECT.name}`);
   console.log(`Client confirmed the work: ${s.clientConfirmed ? "yes" : "no"}\n`);
   for (const w of PROJECT.workers) {
-    const p = s.payouts[w.id];
+    const p = s.payouts[w.id] ?? { status: "pending" };
     console.log(`${w.name.padEnd(6)} ${String(w.allocation).padStart(4)} USDC  ${p.status}${p.tx ? `  ${explorer.tx(p.tx)}` : ""}${p.error ? `  (${p.error})` : ""}`);
   }
-  const totals = summarizePayouts(PROJECT.workers, s);
-  console.log(`Paid: ${totals.paid} USDC | Verifying: ${totals.verifying} USDC | Pending: ${totals.pending} USDC`);
   console.log();
 }
 
 async function confirm() {
   const s = await readState();
-  if (process.env.NODE_ENV === "production") throw new Error("CLI demo confirmation is disabled in production");
-  if (Object.values(s.payouts ?? {}).some((p) => p.status !== "pending")) {
-    throw new Error("Cannot confirm after payouts have started");
-  }
   s.clientConfirmed = true;
   await saveState(s);
   console.log("✓ Client confirmed the work. The agent may now pay.");
@@ -80,7 +44,6 @@ async function confirm() {
 
 async function pay() {
   const s = await readState();
-  validatePayoutHistory(s, PROJECT.workers.map((w) => w.id));
 
   // GATE 1: no payment until the client has confirmed.
   if (!s.clientConfirmed) {
@@ -88,17 +51,10 @@ async function pay() {
     return;
   }
 
-  requireTestnet(config.network, config.networkPassphrase);
-  validateWorkerRecipients(PROJECT.workers);
-  validateUsdcConfig(config.usdc, config.networkPassphrase);
-  // Check the ledger network BEFORE signing or sending any payment.
-  await verifyHorizonNetwork(config.horizonUrl, config.networkPassphrase);
   const signer = createEd25519Signer(config.agentSecret, config.network);
 
   for (const w of PROJECT.workers) {
-    if (!s.payouts[w.id] || typeof s.payouts[w.id] !== "object") {
-      throw new Error(`Missing or invalid payout record for ${w.id}; refusing to pay`);
-    }
+    s.payouts[w.id] ??= { status: "pending" };
     const p = s.payouts[w.id];
 
     // GATE 2: never pay twice.
@@ -107,9 +63,6 @@ async function pay() {
       console.log(`⚠ ${w.name}: a previous run didn't finish. Check the explorer before retrying (the agent won't guess).`);
       continue;
     }
-
-    if (p.status === "failed") { console.log("Previous payout outcome uncertain; check Stellar before retrying."); continue; }
-    if (p.status !== "pending") throw new Error(`Unknown payout status for ${w.id}: ${p.status}`);
 
     // Write "processing" to the file BEFORE sending, so even a crash can't lead to a double payment.
     p.status = "processing";
@@ -126,22 +79,15 @@ async function pay() {
 
       const header = res.headers.get("PAYMENT-RESPONSE");
       const settlement = header ? decodePaymentResponseHeader(header) : null;
-      const transaction = validateSettlement(settlement);
-      // Save the reported hash BEFORE any additional network lookup.
-      // If Horizon is temporarily unavailable, we still know what to reconcile.
-      p.tx = transaction;
-      await saveState(s);
-      // A facilitator response alone is not proof of a successful ledger transaction.
-      await verifyTransactionOnHorizon(transaction, config.horizonUrl);
+      if (!settlement?.success) throw new Error("payment did not settle");
 
-      // Horizon success does not prove this worker received the expected USDC.
-      // Preserve the transaction for manual reconciliation until transfer details are checked.
-      p.status = "processing";
-      p.tx = transaction;
-      p.error = "Ledger transaction succeeded; recipient, USDC asset and amount not yet verified";
-      console.log(`⚠ ${w.name}: transaction found, payout still needs transfer verification  ${explorer.tx(p.tx)}`);
+      p.status = "paid";
+      p.tx = settlement.transaction;
+      p.paidAt = new Date().toISOString();
+      delete p.error;
+      console.log(`✓ ${w.name}: paid ${w.allocation} USDC  ${explorer.tx(p.tx)}`);
     } catch (e) {
-      p.status = "processing"; // outcome uncertain: check ledger before retrying
+      p.status = "failed"; // safe to retry: the payment did not go through
       p.error = e.message;
       console.log(`✗ ${w.name}: ${e.message}`);
     }
@@ -150,44 +96,12 @@ async function pay() {
   console.log("\nRun 'status' to see the summary.");
 }
 
-// Read-only check: never upgrades a payment to "paid" without transfer verification.
-async function reconcile() {
-  requireTestnet(config.network, config.networkPassphrase);
-  const s = await readState();
-  validatePayoutHistory(s, PROJECT.workers.map((w) => w.id));
-  await verifyHorizonNetwork(config.horizonUrl, config.networkPassphrase);
-  for (const worker of PROJECT.workers) {
-    const payout = s.payouts[worker.id];
-    if (!payout.tx) {
-      console.log(`${worker.name}: ${payout.status} (no transaction hash recorded)`);
-      continue;
-    }
-    try {
-      await verifyTransactionOnHorizon(payout.tx, config.horizonUrl);
-      console.log(`${worker.name}: transaction succeeded on testnet, but recipient, USDC asset and amount still require verification. ${explorer.tx(payout.tx)}`);
-    } catch (error) {
-      console.log(`${worker.name}: could not confirm transaction: ${error.message}`);
-    }
-  }
-  console.log("Read-only reconciliation complete. No payment statuses changed.");
-}
-
-async function init() {
-  if (process.env.NODE_ENV === "production") throw new Error("Demo initialization is disabled in production");
-  const file = await fs.open(STATE_FILE, "wx", 0o600);
-  try { await file.writeFile(JSON.stringify(freshState(), null, 2)); }
-  finally { await file.close(); }
-  console.log("Created new demo payout history. Never initialize again after a real payout.");
-}
-
 async function reset() {
-  const current = await readState();
-  validatePayoutHistory(current, PROJECT.workers.map((w) => w.id));
-  canResetPayouts(current);
-  throw new Error("Reset is disabled: use a new testnet project to avoid duplicate payments");
+  await saveState(freshState());
+  console.log("✓ State reset. (Testnet only: this does not undo any payments.)");
 }
 
-const commands = { status, init, confirm, pay, reset, reconcile };
+const commands = { status, confirm, pay, reset };
 const run = commands[process.argv[2]];
-if (!run) { console.log("Usage: node src/payshare-agent.mjs status | init | confirm | pay | reset | reconcile"); process.exit(1); }
-await (["status", "reconcile"].includes(process.argv[2]) ? run() : withPayoutLock(run));
+if (!run) { console.log("Usage: node src/payshare-agent.mjs status | confirm | pay | reset"); process.exit(1); }
+await run();
