@@ -9,7 +9,7 @@ import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config, explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
-import { validateSettlement, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients } from "./payout-validation.mjs";
+import { validateSettlement, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients, validateUsdcConfig } from "./payout-validation.mjs";
 
 const STATE_FILE = "payshare-state.json";
 
@@ -87,6 +87,7 @@ async function pay() {
 
   requireTestnet(config.network, config.networkPassphrase);
   validateWorkerRecipients(PROJECT.workers);
+  validateUsdcConfig(config.usdc);
   // Check the ledger network BEFORE signing or sending any payment.
   await verifyHorizonNetwork(config.horizonUrl, config.networkPassphrase);
   const signer = createEd25519Signer(config.agentSecret, config.network);
