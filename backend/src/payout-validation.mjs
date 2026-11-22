@@ -17,3 +17,10 @@ export function canStartPayout(state, workerId) {
   if (status !== "pending") throw new Error(`Payout status is ${status}; check the ledger before retrying`);
   return true;
 }
+
+export function canResetPayouts(state) {
+  if (Object.values(state.payouts ?? {}).some((p) => p.status !== "pending")) {
+    throw new Error("Cannot reset after a payout attempt; reconcile transactions on Stellar first");
+  }
+  return true;
+}
