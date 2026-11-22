@@ -143,4 +143,4 @@ async function reset() {
 const commands = { status, confirm, pay, reset };
 const run = commands[process.argv[2]];
 if (!run) { console.log("Usage: node src/payshare-agent.mjs status | confirm | pay | reset"); process.exit(1); }
-await (process.argv[2] === "pay" ? withPayoutLock(run) : run());
+await (process.argv[2] === "status" ? run() : withPayoutLock(run));
