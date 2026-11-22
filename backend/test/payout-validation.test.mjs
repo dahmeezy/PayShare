@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon } from "../src/payout-validation.mjs";
+import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork } from "../src/payout-validation.mjs";
 
 test("requires a successful settlement and a transaction hash", () => {
   const hash = "a".repeat(64);
@@ -58,4 +58,12 @@ test("Horizon independently confirms a matching successful transaction", async (
   })), /HTTP 404/);
   await assert.rejects(() => verifyTransactionOnHorizon("invalid", "https://horizon-testnet.stellar.org", fakeFetch), /Invalid Stellar transaction hash/);
   await assert.rejects(() => verifyTransactionOnHorizon(hash, "http://example.com", fakeFetch), /HTTPS/);
+});
+
+test("Horizon network must match the configured Stellar passphrase", async () => {
+  const passphrase = "Test SDF Network ; September 2015";
+  const fakeFetch = async () => ({ ok: true, json: async () => ({ network_passphrase: passphrase }) });
+  assert.equal(await verifyHorizonNetwork("https://horizon-testnet.stellar.org", passphrase, fakeFetch), true);
+  await assert.rejects(() => verifyHorizonNetwork("https://horizon-testnet.stellar.org", "Public Global Stellar Network ; September 2015", fakeFetch), /does not match/);
+  await assert.rejects(() => verifyHorizonNetwork("http://untrusted.example", passphrase, fakeFetch), /HTTPS/);
 });
