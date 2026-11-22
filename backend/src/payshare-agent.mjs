@@ -146,7 +146,7 @@ async function reset() {
   const current = await readState();
   validatePayoutHistory(current, PROJECT.workers.map((w) => w.id));
   canResetPayouts(current);
-  await saveState(freshState());
+  throw new Error("Reset is disabled: use a new testnet project to avoid duplicate payments");
   console.log("✓ State reset. (Testnet only: this does not undo any payments.)");
 }
 
