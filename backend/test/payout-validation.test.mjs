@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateSettlement, canStartPayout } from "../src/payout-validation.mjs";
+import { validateSettlement, canStartPayout, canResetPayouts } from "../src/payout-validation.mjs";
 
 test("requires a successful settlement and a transaction hash", () => {
   const hash = "a".repeat(64);
@@ -14,5 +14,12 @@ test("requires client confirmation and a pending payout", () => {
   assert.equal(canStartPayout({ clientConfirmed: true, payouts: {} }, "amara"), true);
   for (const status of ["paid", "processing", "failed"]) {
     assert.throws(() => canStartPayout({ clientConfirmed: true, payouts: { amara: { status } } }, "amara"));
+  }
+});
+
+test("reset is blocked after any payout attempt", () => {
+  assert.equal(canResetPayouts({ payouts: { amara: { status: "pending" } } }), true);
+  for (const status of ["processing", "paid", "failed"]) {
+    assert.throws(() => canResetPayouts({ payouts: { amara: { status } } }), /Cannot reset/);
   }
 });
