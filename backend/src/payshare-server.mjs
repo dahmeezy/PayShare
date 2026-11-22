@@ -8,17 +8,17 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { config } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
-import { budgetBreakdown } from "./budget.mjs";
-import { moneyRouter } from "./money-api.mjs";
+import { moneyErrors, moneyRouter } from "./money-api.mjs";
 
 const { network, usdc, facilitator: fac } = config;
 
 // ── Rule: the budget breakdown must always balance ──
 // Distributable = Budget - Expenses - Contractor pay. Counted in cents to avoid rounding errors.
-const budget = budgetBreakdown(PROJECT);
-const distributable = budget.worker_pool;
-if (budget.allocated !== distributable) {
-    console.error(`✗ Budget doesn't balance: workers get ${budget.allocated / 100} but ${distributable / 100} is distributable.`);
+const cents = (n) => Math.round(n * 100);
+const distributable = cents(PROJECT.budget) - cents(PROJECT.expenses) - cents(PROJECT.contractorPay);
+const allocated = PROJECT.workers.reduce((sum, w) => sum + cents(w.allocation), 0);
+if (allocated !== distributable) {
+    console.error(`✗ Budget doesn't balance: workers get ${allocated / 100} but ${distributable / 100} is distributable.`);
     process.exit(1);
 }
 
@@ -92,7 +92,7 @@ app.get("/catalog", (_req, res) => {
 });
 
 // ── Money API for the frontend (role-filtered) ──
-app.use("/api", moneyRouter);
+app.use("/api", moneyRouter, moneyErrors);
 
 app.listen(config.port, () => {
     console.log(`\nPayShare API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);
