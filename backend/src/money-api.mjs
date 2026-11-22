@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import { Router } from "express";
 import { explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
+import { budgetBreakdown } from "./budget.mjs";
 
 const PROJECT_ID = "proj_demo"; // TODO: real project ids once the projects feature exists
 const STATE_FILE = "payshare-state.json"; // written by the payout agent (run both from the backend folder)
@@ -53,14 +54,9 @@ const visibleWorkers = (auth) =>
 // H2: GET /projects/{id}/money-summary
 moneyRouter.get("/projects/:id/money-summary", async (req, res) => {
   const payouts = await readPayouts();
-  const totalBudget = cents(PROJECT.budget);
-  const expenses = cents(PROJECT.expenses);
-  const contractorComp = cents(PROJECT.contractorPay);
-  const workerPool = totalBudget - expenses - contractorComp;
+  const budget = budgetBreakdown(PROJECT, payouts);
+  const { total_budget: totalBudget, expenses, contractor_comp: contractorComp, worker_pool: workerPool, paid, pending } = budget;
   const funded = totalBudget; // TODO: real funding record (row 10); the demo assumes the client funded in full
-  const allocated = PROJECT.workers.reduce((sum, w) => sum + cents(w.allocation), 0);
-  const paid = PROJECT.workers.filter((w) => payouts[w.id]?.status === "paid").reduce((sum, w) => sum + cents(w.allocation), 0);
-  const pending = allocated - paid;
   const isWorker = req.auth.role === "worker";
   res.json({
     total_budget: totalBudget,
@@ -68,6 +64,8 @@ moneyRouter.get("/projects/:id/money-summary", async (req, res) => {
     expenses,
     contractor_comp: isWorker ? null : contractorComp, // never shown to workers
     worker_pool: workerPool,
+    allocated: budget.allocated,
+    unallocated: budget.unallocated,
     paid,
     pending,
     remaining: isWorker ? null : funded - paid - pending, // not listed for workers in the MVP (Privacy Matrix)
