@@ -68,7 +68,8 @@ moneyRouter.get("/projects/:id/money-summary", withPayouts((req, res, payouts) =
   const funded = totalBudget; // TODO: real funding record (row 10); the demo assumes the client funded in full
   const allocated = PROJECT.workers.reduce((sum, w) => sum + cents(w.allocation), 0);
   const paid = PROJECT.workers.filter((w) => payouts[w.id]?.status === "paid").reduce((sum, w) => sum + cents(w.allocation), 0);
-  const pending = allocated - paid;
+  const verifying = PROJECT.workers.filter((w) => payouts[w.id].status === "processing").reduce((sum, w) => sum + cents(w.allocation), 0);
+  const pending = allocated - paid - verifying;
   const isWorker = req.auth.role === "worker";
   res.json({
     total_budget: totalBudget,
@@ -77,8 +78,9 @@ moneyRouter.get("/projects/:id/money-summary", withPayouts((req, res, payouts) =
     contractor_comp: isWorker ? null : contractorComp, // never shown to workers
     worker_pool: workerPool,
     paid,
+    verifying,
     pending,
-    remaining: isWorker ? null : funded - paid - pending, // not listed for workers in the MVP (Privacy Matrix)
+    remaining: isWorker ? null : funded - paid - verifying - pending, // not listed for workers in the MVP (Privacy Matrix)
   });
 }));
 
@@ -113,6 +115,6 @@ moneyRouter.get("/projects/:id/payments", withPayouts((req, res, payouts) => {
   res.json({
     payments: mine,
     // Workers get their own payments plus overall progress only (Privacy Matrix)
-    progress: { paid: all.filter((p) => p.status === "paid").length, total: all.length },
+    progress: { paid: all.filter((p) => p.status === "paid").length, verifying: all.filter((p) => p.status === "processing").length, total: all.length },
   });
 }));
