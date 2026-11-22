@@ -87,6 +87,8 @@ async function pay() {
 
   requireTestnet(config.network, config.networkPassphrase);
   validateWorkerRecipients(PROJECT.workers);
+  // Check the ledger network BEFORE signing or sending any payment.
+  await verifyHorizonNetwork(config.horizonUrl, config.networkPassphrase);
   const signer = createEd25519Signer(config.agentSecret, config.network);
 
   for (const w of PROJECT.workers) {
@@ -122,7 +124,6 @@ async function pay() {
       const settlement = header ? decodePaymentResponseHeader(header) : null;
       const transaction = validateSettlement(settlement);
       // A facilitator response alone is not proof of a successful ledger transaction.
-      await verifyHorizonNetwork(config.horizonUrl, config.networkPassphrase);
       await verifyTransactionOnHorizon(transaction, config.horizonUrl);
 
       // Horizon success does not prove this worker received the expected USDC.
