@@ -92,7 +92,7 @@ moneyRouter.get("/projects/:id/allocations", withPayouts((req, res, payouts) => 
     amount: cents(w.allocation),
     status: payouts[w.id]?.status ?? "pending",
   })));
-});
+}));
 
 // GET /projects/{id}/payments
 moneyRouter.get("/projects/:id/payments", withPayouts((req, res, payouts) => {
