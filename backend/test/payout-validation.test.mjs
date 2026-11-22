@@ -1,7 +1,7 @@
 import { Asset, Keypair } from "@stellar/stellar-sdk";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients, validateUsdcConfig } from "../src/payout-validation.mjs";
+import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients, validateUsdcConfig, summarizePayouts } from "../src/payout-validation.mjs";
 
 test("requires a successful settlement and a transaction hash", () => {
   const hash = "a".repeat(64);
@@ -104,4 +104,18 @@ test("USDC configuration requires valid Stellar identifiers", () => {
   assert.throws(() => validateUsdcConfig({ ...valid, contractId: "bad" }, passphrase), /contract ID/);
   assert.throws(() => validateUsdcConfig({ ...valid, decimals: 6 }, passphrase), /7 decimals/);
   assert.throws(() => validateUsdcConfig(valid, "Public Global Stellar Network ; September 2015"), /does not match/);
+});
+
+test("payout summary does not count processing transfers as paid", () => {
+  const workers = [
+    { id: "amara", allocation: 1.5 },
+    { id: "bisi", allocation: 2.5 },
+    { id: "chidi", allocation: 3 },
+  ];
+  const state = { clientConfirmed: true, payouts: {
+    amara: { status: "paid", tx: "a".repeat(64) },
+    bisi: { status: "processing" },
+    chidi: { status: "pending" },
+  } };
+  assert.deepEqual(summarizePayouts(workers, state), { paid: 1.5, verifying: 2.5, pending: 3 });
 });
