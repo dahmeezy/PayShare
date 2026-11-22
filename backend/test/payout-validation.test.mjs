@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork } from "../src/payout-validation.mjs";
+import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet } from "../src/payout-validation.mjs";
 
 test("requires a successful settlement and a transaction hash", () => {
   const hash = "a".repeat(64);
@@ -66,4 +66,10 @@ test("Horizon network must match the configured Stellar passphrase", async () =>
   assert.equal(await verifyHorizonNetwork("https://horizon-testnet.stellar.org", passphrase, fakeFetch), true);
   await assert.rejects(() => verifyHorizonNetwork("https://horizon-testnet.stellar.org", "Public Global Stellar Network ; September 2015", fakeFetch), /does not match/);
   await assert.rejects(() => verifyHorizonNetwork("http://untrusted.example", passphrase, fakeFetch), /HTTPS/);
+});
+
+test("demo payout refuses public Stellar network", () => {
+  assert.equal(requireTestnet("stellar:testnet", "Test SDF Network ; September 2015"), true);
+  assert.throws(() => requireTestnet("stellar:pubnet", "Public Global Stellar Network ; September 2015"), /restricted to Stellar testnet/);
+  assert.throws(() => requireTestnet("stellar:testnet", "Public Global Stellar Network ; September 2015"), /restricted to Stellar testnet/);
 });
