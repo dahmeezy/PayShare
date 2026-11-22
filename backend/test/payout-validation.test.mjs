@@ -1,3 +1,4 @@
+import { Keypair } from "@stellar/stellar-sdk";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients } from "../src/payout-validation.mjs";
@@ -75,8 +76,8 @@ test("demo payout refuses public Stellar network", () => {
 });
 
 test("worker recipients must be unique with valid allocations", () => {
-  const walletA = "G" + "A".repeat(55);
-  const walletB = "G" + "B".repeat(55);
+  const walletA = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 1)).publicKey();
+  const walletB = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 2)).publicKey();
   const a = { id: "amara", wallet: walletA, allocation: 1.5 };
   const b = { id: "bisi", wallet: walletB, allocation: 2.5 };
   assert.equal(validateWorkerRecipients([a, b]), true);
@@ -85,4 +86,6 @@ test("worker recipients must be unique with valid allocations", () => {
   assert.throws(() => validateWorkerRecipients([a, { ...b, allocation: -1 }]), /Invalid allocation/);
   assert.throws(() => validateWorkerRecipients([a, { ...b, allocation: 1.234 }]), /Invalid allocation/);
   assert.throws(() => validateWorkerRecipients([a, { ...b, wallet: "not-a-wallet" }]), /Invalid Stellar wallet/);
+  const badChecksum = walletB.slice(0, -1) + (walletB.endsWith("A") ? "B" : "A");
+  assert.throws(() => validateWorkerRecipients([a, { ...b, wallet: badChecksum }]), /Invalid Stellar wallet/);
 });
