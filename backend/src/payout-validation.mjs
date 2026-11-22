@@ -11,6 +11,7 @@ export function validateSettlement(settlement) {
 }
 
 export function canStartPayout(state, workerId) {
+  if (!state || typeof state !== "object") throw new Error("Invalid payout history");
   if (state.clientConfirmed !== true) throw new Error("Client has not confirmed the work");
   const status = state.payouts?.[workerId]?.status;
   if (status === undefined) throw new Error("Missing payout record; refusing to pay");
@@ -25,6 +26,28 @@ export function canResetPayouts(state) {
   }
   if (Object.values(state.payouts).some((p) => p?.status !== "pending")) {
     throw new Error("Cannot reset after a payout attempt; reconcile transactions on Stellar first");
+  }
+  return true;
+}
+
+export function validatePayoutHistory(state, workerIds) {
+  if (!state || typeof state !== "object" || Array.isArray(state) ||
+      typeof state.clientConfirmed !== "boolean" ||
+      !state.payouts || typeof state.payouts !== "object" || Array.isArray(state.payouts)) {
+    throw new Error("Invalid payout history");
+  }
+  const expected = new Set(workerIds);
+  if (expected.size !== workerIds.length || Object.keys(state.payouts).length !== expected.size) {
+    throw new Error("Payout records do not match project workers");
+  }
+  for (const id of workerIds) {
+    const payout = state.payouts[id];
+    if (!payout || !["pending", "processing", "paid", "failed"].includes(payout.status)) {
+      throw new Error(`Invalid payout record for ${id}`);
+    }
+    if (payout.status === "paid" && !/^[a-fA-F0-9]{64}$/.test(payout.tx ?? "")) {
+      throw new Error(`Paid record for ${id} has no valid transaction hash`);
+    }
   }
   return true;
 }
