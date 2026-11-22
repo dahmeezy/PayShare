@@ -126,6 +126,10 @@ async function pay() {
       const header = res.headers.get("PAYMENT-RESPONSE");
       const settlement = header ? decodePaymentResponseHeader(header) : null;
       const transaction = validateSettlement(settlement);
+      // Save the reported hash BEFORE any additional network lookup.
+      // If Horizon is temporarily unavailable, we still know what to reconcile.
+      p.tx = transaction;
+      await saveState(s);
       // A facilitator response alone is not proof of a successful ledger transaction.
       await verifyTransactionOnHorizon(transaction, config.horizonUrl);
 
