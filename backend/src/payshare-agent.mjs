@@ -87,7 +87,7 @@ async function pay() {
 
   requireTestnet(config.network, config.networkPassphrase);
   validateWorkerRecipients(PROJECT.workers);
-  validateUsdcConfig(config.usdc);
+  validateUsdcConfig(config.usdc, config.networkPassphrase);
   // Check the ledger network BEFORE signing or sending any payment.
   await verifyHorizonNetwork(config.horizonUrl, config.networkPassphrase);
   const signer = createEd25519Signer(config.agentSecret, config.network);
