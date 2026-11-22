@@ -52,6 +52,9 @@ async function confirm() {
 
 async function pay() {
   const s = await readState();
+  if (!s.payouts || typeof s.payouts !== "object" || Array.isArray(s.payouts)) {
+    throw new Error("Invalid payout history; refusing to pay");
+  }
 
   // GATE 1: no payment until the client has confirmed.
   if (!s.clientConfirmed) {
