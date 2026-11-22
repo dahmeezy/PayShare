@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory } from "../src/payout-validation.mjs";
+import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon } from "../src/payout-validation.mjs";
 
 test("requires a successful settlement and a transaction hash", () => {
   const hash = "a".repeat(64);
@@ -41,4 +41,21 @@ test("payout history must match all workers", () => {
   assert.throws(() => validatePayoutHistory({ ...valid, payouts: { amara: { status: "pending" } } }, ["amara", "bisi"]), /do not match/);
   assert.throws(() => validatePayoutHistory({ ...valid, payouts: { amara: { status: "pending" }, bisi: { status: "paid" } } }, ["amara", "bisi"]), /transaction hash/);
   assert.throws(() => validatePayoutHistory({ ...valid, clientConfirmed: "true" }, ["amara", "bisi"]), /Invalid payout history/);
+});
+
+test("Horizon independently confirms a matching successful transaction", async () => {
+  const hash = "a".repeat(64);
+  const fakeFetch = async (url) => {
+    assert.equal(url, `https://horizon-testnet.stellar.org/transactions/${hash}`);
+    return { ok: true, json: async () => ({ hash, successful: true }) };
+  };
+  assert.equal(await verifyTransactionOnHorizon(hash, "https://horizon-testnet.stellar.org/", fakeFetch), hash);
+  await assert.rejects(() => verifyTransactionOnHorizon(hash, "https://horizon-testnet.stellar.org", async () => ({
+    ok: true, json: async () => ({ hash, successful: false }),
+  })), /did not confirm/);
+  await assert.rejects(() => verifyTransactionOnHorizon(hash, "https://horizon-testnet.stellar.org", async () => ({
+    ok: false, status: 404,
+  })), /HTTP 404/);
+  await assert.rejects(() => verifyTransactionOnHorizon("invalid", "https://horizon-testnet.stellar.org", fakeFetch), /Invalid Stellar transaction hash/);
+  await assert.rejects(() => verifyTransactionOnHorizon(hash, "http://example.com", fakeFetch), /HTTPS/);
 });
