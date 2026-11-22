@@ -9,8 +9,11 @@ import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { config } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
 import { moneyRouter } from "./money-api.mjs";
+import { requireTestnet } from "./payout-validation.mjs";
 
 const { network, usdc, facilitator: fac } = config;
+// This server charges worker wallets directly. Demo authorization is testnet-only.
+requireTestnet(network, config.networkPassphrase);
 
 // ── Rule: the budget breakdown must always balance ──
 // Distributable = Budget - Expenses - Contractor pay. Counted in cents to avoid rounding errors.
