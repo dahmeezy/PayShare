@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import { Router } from "express";
 import { explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
+import { validateFundingRequest, readFundingRequests, saveFundingRequest } from "./funding.mjs";
 
 const PROJECT_ID = "proj_demo"; // TODO: real project ids once the projects feature exists
 const STATE_FILE = "payshare-state.json"; // written by the payout agent (run both from the backend folder)
@@ -57,7 +58,7 @@ moneyRouter.get("/projects/:id/money-summary", async (req, res) => {
   const expenses = cents(PROJECT.expenses);
   const contractorComp = cents(PROJECT.contractorPay);
   const workerPool = totalBudget - expenses - contractorComp;
-  const funded = totalBudget; // TODO: real funding record (row 10); the demo assumes the client funded in full
+  const funded = 0; // Funding requests are not verified payments
   const allocated = PROJECT.workers.reduce((sum, w) => sum + cents(w.allocation), 0);
   const paid = PROJECT.workers.filter((w) => payouts[w.id]?.status === "paid").reduce((sum, w) => sum + cents(w.allocation), 0);
   const pending = allocated - paid;
@@ -109,4 +110,24 @@ moneyRouter.get("/projects/:id/payments", async (req, res) => {
     // Workers get their own payments plus overall progress only (Privacy Matrix)
     progress: { paid: all.filter((p) => p.status === "paid").length, total: all.length },
   });
+});
+moneyRouter.post("/funding", async (req, res) => {
+  if (req.auth.role !== "client") return res.status(403).json({ error: "client only" });
+  let request;
+  try { request = validateFundingRequest(req.body); }
+  catch (error) { return res.status(400).json({ error: error.message }); }
+  try { res.status(201).json(await saveFundingRequest(request)); }
+  catch { res.status(500).json({ error: "could not save funding request" }); }
+});
+
+moneyRouter.get("/projects/:id/funding", async (req, res) => {
+  try {
+    const requests = await readFundingRequests();
+    res.json({
+      verified_amount: 0,
+      requests: req.auth.role === "worker"
+        ? requests.map((r) => ({ amount: r.amount, status: r.status }))
+        : requests,
+    });
+  } catch { res.status(500).json({ error: "could not read funding requests" }); }
 });
