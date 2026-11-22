@@ -20,7 +20,10 @@ const freshState = () => ({
 });
 async function readState() {
   try { return JSON.parse(await fs.readFile(STATE_FILE, "utf8")); }
-  catch { return freshState(); }
+  catch (error) {
+    if (error.code === "ENOENT") return freshState();
+    throw new Error("Cannot read payout history; refusing to continue", { cause: error });
+  }
 }
 const saveState = (s) => fs.writeFile(STATE_FILE, JSON.stringify(s, null, 2));
 
@@ -38,6 +41,10 @@ async function status() {
 
 async function confirm() {
   const s = await readState();
+  if (process.env.NODE_ENV === "production") throw new Error("CLI demo confirmation is disabled in production");
+  if (Object.values(s.payouts ?? {}).some((p) => p.status !== "pending")) {
+    throw new Error("Cannot confirm after payouts have started");
+  }
   s.clientConfirmed = true;
   await saveState(s);
   console.log("✓ Client confirmed the work. The agent may now pay.");
