@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { toCents, budgetBreakdown } from "../src/budget.mjs";
+import { toCents, approvedExpenseTotal, budgetBreakdown } from "../src/budget.mjs";
 
 const project = {
   budget: 10,
@@ -40,4 +40,17 @@ test("subtracts paid allocations from pending", () => {
 
 test("rejects spending more than the budget", () => {
   assert.throws(() => budgetBreakdown({ ...project, expenses: 5 }), /Budget exceeded/);
+});
+
+test("only approved and documented expenses reduce the budget", () => {
+  const expenses = [
+    { amount: 1, description: "Transport", approved: true },
+    { amount: 4, description: "Unapproved purchase", approved: false },
+  ];
+  assert.equal(approvedExpenseTotal(expenses), 100);
+  assert.equal(budgetBreakdown({ ...project, expenses }).worker_pool, 700);
+});
+
+test("approved expenses require a description", () => {
+  assert.throws(() => approvedExpenseTotal([{ amount: 1, approved: true }]), /description/);
 });
