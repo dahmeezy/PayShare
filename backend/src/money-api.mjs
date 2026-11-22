@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import { Router } from "express";
 import { explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
+import { validateIncompleteReport } from "./incomplete-task.mjs";
 
 const PROJECT_ID = "proj_demo"; // TODO: real project ids once the projects feature exists
 const STATE_FILE = "payshare-state.json"; // written by the payout agent (run both from the backend folder)
@@ -109,4 +110,20 @@ moneyRouter.get("/projects/:id/payments", async (req, res) => {
     // Workers get their own payments plus overall progress only (Privacy Matrix)
     progress: { paid: all.filter((p) => p.status === "paid").length, total: all.length },
   });
+});
+// Demo report preview only. Actual task state belongs to Owner A's task API.
+// Never authorize or change a payment based on a report request.
+moneyRouter.post("/projects/:id/incomplete-reports/preview", (req, res) => {
+  if (!["contractor", "client"].includes(req.auth.role)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  try {
+    res.status(200).json({
+      ...validateIncompleteReport(req.body, PROJECT.workers),
+      saved: false,
+      message: "Preview only; task state and payments were not changed",
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 });
