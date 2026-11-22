@@ -9,7 +9,7 @@ import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config, explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
-import { validateSettlement, canResetPayouts } from "./payout-validation.mjs";
+import { validateSettlement, canResetPayouts, validatePayoutHistory } from "./payout-validation.mjs";
 
 const STATE_FILE = "payshare-state.json";
 
@@ -76,9 +76,7 @@ async function confirm() {
 
 async function pay() {
   const s = await readState();
-  if (!s.payouts || typeof s.payouts !== "object" || Array.isArray(s.payouts)) {
-    throw new Error("Invalid payout history; refusing to pay");
-  }
+  validatePayoutHistory(s, PROJECT.workers.map((w) => w.id));
 
   // GATE 1: no payment until the client has confirmed.
   if (!s.clientConfirmed) {
@@ -138,6 +136,7 @@ async function pay() {
 
 async function reset() {
   const current = await readState();
+  validatePayoutHistory(current, PROJECT.workers.map((w) => w.id));
   canResetPayouts(current);
   await saveState(freshState());
   console.log("✓ State reset. (Testnet only: this does not undo any payments.)");
