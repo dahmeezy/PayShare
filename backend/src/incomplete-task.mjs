@@ -18,6 +18,6 @@ export function validateIncompleteReport(input, workers) {
 
 export function canPayForTask(task) {
   return task?.status === "approved" &&
-    task.client_confirmed === true &&
+    ((!task.requires_client && !task.overall_completion) || task.client_confirmed === true) &&
     task.incomplete_report_open !== true;
 }

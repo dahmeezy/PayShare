@@ -18,6 +18,6 @@ test("rejects missing worker or reason", () => {
 test("only approved and client-confirmed work without open reports can be paid", () => {
   assert.equal(canPayForTask({ status: "approved", client_confirmed: true }), true);
   assert.equal(canPayForTask({ status: "submitted", client_confirmed: true }), false);
-  assert.equal(canPayForTask({ status: "approved", client_confirmed: false }), false);
+  assert.equal(canPayForTask({ status: "approved", requires_client: true, client_confirmed: false }), false);
   assert.equal(canPayForTask({ status: "approved", client_confirmed: true, incomplete_report_open: true }), false);
 });
