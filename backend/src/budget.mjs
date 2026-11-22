@@ -10,9 +10,22 @@ export function toCents(amount) {
   return cents;
 }
 
+// Only approved, documented expenses count against the budget.
+export function approvedExpenseTotal(expenses) {
+  return expenses.reduce((total, expense) => {
+    if (!expense.approved) return total;
+    if (typeof expense.description !== "string" || !expense.description.trim()) {
+      throw new Error("Approved expenses need a description");
+    }
+    return total + toCents(expense.amount);
+  }, 0);
+}
+
 export function budgetBreakdown(project, payouts = {}) {
   const totalBudget = toCents(project.budget);
-  const expenses = toCents(project.expenses);
+  const expenses = Array.isArray(project.expenses)
+    ? approvedExpenseTotal(project.expenses)
+    : toCents(project.expenses);
   const contractorComp = toCents(project.contractorPay);
   const workerPool = totalBudget - expenses - contractorComp;
   const allocated = project.workers.reduce((sum, worker) => sum + toCents(worker.allocation), 0);
