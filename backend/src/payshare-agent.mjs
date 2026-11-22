@@ -89,7 +89,9 @@ async function pay() {
   const signer = createEd25519Signer(config.agentSecret, config.network);
 
   for (const w of PROJECT.workers) {
-    s.payouts[w.id] ??= { status: "pending" };
+    if (!s.payouts[w.id] || typeof s.payouts[w.id] !== "object") {
+      throw new Error(`Missing or invalid payout record for ${w.id}; refusing to pay`);
+    }
     const p = s.payouts[w.id];
 
     // GATE 2: never pay twice.
@@ -100,6 +102,7 @@ async function pay() {
     }
 
     if (p.status === "failed") { console.log("Previous payout outcome uncertain; check Stellar before retrying."); continue; }
+    if (p.status !== "pending") throw new Error(`Unknown payout status for ${w.id}: ${p.status}`);
 
     // Write "processing" to the file BEFORE sending, so even a crash can't lead to a double payment.
     p.status = "processing";
