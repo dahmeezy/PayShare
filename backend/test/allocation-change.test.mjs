@@ -20,7 +20,7 @@ test("rejects invalid proposals", () => {
 });
 
 test("requires both approvals before applying", () => {
-  const change = proposeAllocationChange({ allocation_id: "alloc_amara", proposed_amount: 120, reason: "Updated scope" }, workers);
+  const change = proposeAllocationChange({ allocation_id: "alloc_amara", proposed_amount: 175, reason: "Updated scope" }, workers);
   assert.equal(canApplyAllocationChange(change), false);
   change.worker_accepted = true;
   assert.equal(canApplyAllocationChange(change), false);

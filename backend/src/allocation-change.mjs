@@ -16,10 +16,11 @@ export function proposeAllocationChange(input, workers) {
     reason: input.reason.trim(),
     worker_accepted: false,
     client_approved: false,
+    requires_client: input.proposed_amount > Math.round(worker.allocation * 100),
     status: "pending",
   };
 }
 
 export function canApplyAllocationChange(change) {
-  return change.worker_accepted === true && change.client_approved === true && change.status === "pending";
+  return change.worker_accepted === true && (!change.requires_client || change.client_approved === true) && change.status === "pending";
 }
