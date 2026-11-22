@@ -1,4 +1,4 @@
-import { StrKey } from "@stellar/stellar-sdk";
+import { Asset, StrKey } from "@stellar/stellar-sdk";
 
 // Check the x402 facilitator's settlement response before recording a payout.
 // This does not replace independent on-chain verification.
@@ -143,7 +143,7 @@ export function validateWorkerRecipients(workers) {
  * Check the configured token identifiers before enabling paid routes or payouts.
  * This checks format only; it does not prove the contract is genuine USDC.
  */
-export function validateUsdcConfig(usdc) {
+export function validateUsdcConfig(usdc, networkPassphrase) {
   if (!usdc || usdc.code !== "USDC") throw new Error("USDC asset code is required");
   if (!StrKey.isValidEd25519PublicKey(usdc.issuer || "")) {
     throw new Error("Invalid USDC issuer wallet");
@@ -152,5 +152,12 @@ export function validateUsdcConfig(usdc) {
     throw new Error("Invalid USDC contract ID");
   }
   if (usdc.decimals !== 7) throw new Error("Expected Stellar USDC to use 7 decimals");
+  if (typeof networkPassphrase !== "string" || !networkPassphrase.trim()) {
+    throw new Error("Stellar network passphrase is required for asset verification");
+  }
+  const expectedContract = new Asset(usdc.code, usdc.issuer).contractId(networkPassphrase);
+  if (usdc.contractId !== expectedContract) {
+    throw new Error("USDC contract ID does not match the asset issuer on this Stellar network");
+  }
   return true;
 }
