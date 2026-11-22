@@ -14,7 +14,9 @@ export function validateFundingRequest(body) {
 
 export async function readFundingRequests() {
   try {
-    return JSON.parse(await fs.readFile(FILE, "utf8"));
+    const requests = JSON.parse(await fs.readFile(FILE, "utf8"));
+    if (!Array.isArray(requests)) throw new Error("Invalid funding request history");
+    return requests;
   } catch (error) {
     if (error.code === "ENOENT") return [];
     throw error;
