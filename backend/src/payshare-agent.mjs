@@ -9,7 +9,7 @@ import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config, explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
-import { validateSettlement, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork } from "./payout-validation.mjs";
+import { validateSettlement, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet } from "./payout-validation.mjs";
 
 const STATE_FILE = "payshare-state.json";
 
@@ -84,6 +84,7 @@ async function pay() {
     return;
   }
 
+  requireTestnet(config.network, config.networkPassphrase);
   const signer = createEd25519Signer(config.agentSecret, config.network);
 
   for (const w of PROJECT.workers) {
