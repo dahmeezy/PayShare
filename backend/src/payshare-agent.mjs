@@ -123,11 +123,12 @@ async function pay() {
       await verifyHorizonNetwork(config.horizonUrl, config.networkPassphrase);
       await verifyTransactionOnHorizon(transaction, config.horizonUrl);
 
-      p.status = "paid";
+      // Horizon success does not prove this worker received the expected USDC.
+      // Preserve the transaction for manual reconciliation until transfer details are checked.
+      p.status = "processing";
       p.tx = transaction;
-      p.paidAt = new Date().toISOString();
-      delete p.error;
-      console.log(`✓ ${w.name}: paid ${w.allocation} USDC  ${explorer.tx(p.tx)}`);
+      p.error = "Ledger transaction succeeded; recipient, USDC asset and amount not yet verified";
+      console.log(`⚠ ${w.name}: transaction found, payout still needs transfer verification  ${explorer.tx(p.tx)}`);
     } catch (e) {
       p.status = "processing"; // outcome uncertain: check ledger before retrying
       p.error = e.message;
