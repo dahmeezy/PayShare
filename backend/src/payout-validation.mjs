@@ -161,3 +161,19 @@ export function validateUsdcConfig(usdc, networkPassphrase) {
   }
   return true;
 }
+
+/** Build a truthful summary: only independently verified payouts count as paid. */
+export function summarizePayouts(workers, state) {
+  validatePayoutHistory(state, workers.map((w) => w.id));
+  let paidCents = 0;
+  let pendingCents = 0;
+  let verifyingCents = 0;
+  for (const worker of workers) {
+    const cents = Math.round(worker.allocation * 100);
+    const payout = state.payouts[worker.id];
+    if (payout.status === "paid") paidCents += cents;
+    else if (payout.status === "processing") verifyingCents += cents;
+    else pendingCents += cents;
+  }
+  return { paid: paidCents / 100, verifying: verifyingCents / 100, pending: pendingCents / 100 };
+}
