@@ -1,25 +1,17 @@
-// Demo-only confirmation helper. Never use caller-supplied role headers as real authentication.
-import fs from "node:fs/promises";
+// The client approves completed work only when client review applies.
 
 export function canConfirm(role, confirmed) {
   if (role !== "client") throw new Error("Only the client can confirm work");
   if (confirmed !== true) throw new Error("confirmed must be true");
 }
 
-export async function confirmDemoWork(file, role, confirmed) {
+export function confirmTask(task, role, confirmed) {
   canConfirm(role, confirmed);
-  let state;
-  try {
-    state = JSON.parse(await fs.readFile(file, "utf8"));
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-    state = { payouts: {} };
+  if (!task || task.status !== "approved" || (!task.requires_client && !task.overall_completion)) {
+    throw new Error("Only approved deliverables designated for client review can be confirmed");
   }
-  if (state.clientConfirmed === true) return { clientConfirmed: true, already_confirmed: true };
-  if (Object.values(state.payouts ?? {}).some((p) => p.status === "processing" || p.status === "paid")) {
-    throw new Error("Cannot change confirmation after payment has started");
-  }
-  state.clientConfirmed = true;
-  await fs.writeFile(file, JSON.stringify(state, null, 2));
-  return { clientConfirmed: true, already_confirmed: false };
+  if (task.client_confirmed) return task;
+  task.client_confirmed = true;
+  task.history.push({ action: "client_confirmed", at: new Date().toISOString() });
+  return task;
 }
