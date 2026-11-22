@@ -9,7 +9,7 @@ import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config, explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
-import { validateSettlement, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients, validateUsdcConfig } from "./payout-validation.mjs";
+import { validateSettlement, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients, validateUsdcConfig, summarizePayouts } from "./payout-validation.mjs";
 
 const STATE_FILE = "payshare-state.json";
 
@@ -61,6 +61,8 @@ async function status() {
     const p = s.payouts[w.id];
     console.log(`${w.name.padEnd(6)} ${String(w.allocation).padStart(4)} USDC  ${p.status}${p.tx ? `  ${explorer.tx(p.tx)}` : ""}${p.error ? `  (${p.error})` : ""}`);
   }
+  const totals = summarizePayouts(PROJECT.workers, s);
+  console.log(`Paid: ${totals.paid} USDC | Verifying: ${totals.verifying} USDC | Pending: ${totals.pending} USDC`);
   console.log();
 }
 
