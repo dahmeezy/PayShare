@@ -1,107 +1,109 @@
-// The PayShare Agent: pays each worker's deliverable over x402, but only when the rules allow it.
-// Usage:  node src/payshare-agent.mjs status    (see who is paid)
-//         node src/payshare-agent.mjs confirm   (stand-in for the client's "work completed" button)
-//         node src/payshare-agent.mjs pay       (the agent runs the payouts)
-//         node src/payshare-agent.mjs reset     (start over: testnet only)
-import fs from "node:fs/promises";
-import { wrapFetchWithPaymentFromConfig, decodePaymentResponseHeader } from "@x402/fetch";
+import { Keypair } from "@stellar/stellar-sdk";
+import { x402Client, x402HTTPClient } from "@x402/fetch";
 import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
-import { config, explorer } from "./config.mjs";
+import { config } from "./config.mjs";
+import { fundingWallet, validHash } from "./funding.mjs";
+import { requireTestnet, validateSettlement } from "./payout-validation.mjs";
 import { PROJECT } from "./project.mjs";
+import { readProjectState, updateProjectState } from "./project-store.mjs";
+import { finishPayout, quoteMatches, TESTNET_RPC } from "./stellar-settlement.mjs";
 
-const STATE_FILE = "payshare-state.json";
-
-// ── State: who has been paid. Lives in a local file so a re-run remembers. ──
-const freshState = () => ({
-  clientConfirmed: false,
-  payouts: Object.fromEntries(PROJECT.workers.map((w) => [w.id, { status: "pending" }])),
-});
-async function readState() {
-  try { return JSON.parse(await fs.readFile(STATE_FILE, "utf8")); }
-  catch { return freshState(); }
-}
-const saveState = (s) => fs.writeFile(STATE_FILE, JSON.stringify(s, null, 2));
-
-// ── Commands ──
-async function status() {
-  const s = await readState();
-  console.log(`\n${PROJECT.name}`);
-  console.log(`Client confirmed the work: ${s.clientConfirmed ? "yes" : "no"}\n`);
-  for (const w of PROJECT.workers) {
-    const p = s.payouts[w.id] ?? { status: "pending" };
-    console.log(`${w.name.padEnd(6)} ${String(w.allocation).padStart(4)} USDC  ${p.status}${p.tx ? `  ${explorer.tx(p.tx)}` : ""}${p.error ? `  (${p.error})` : ""}`);
+function localUrl() {
+  const url = new URL(config.apiBaseUrl);
+  if (url.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(url.hostname) ||
+      url.pathname !== "/" || url.search || url.hash || url.username || url.password) {
+    throw new Error("Use the local PayShare server as API_BASE_URL");
   }
-  console.log();
+  url.hostname = "127.0.0.1";
+  return url.origin;
 }
 
-async function confirm() {
-  const s = await readState();
-  s.clientConfirmed = true;
-  await saveState(s);
-  console.log("✓ Client confirmed the work. The agent may now pay.");
+async function pay(id) {
+  if (process.env.PAYSHARE_ENABLE_TESTNET_PAYOUTS !== "true") throw new Error("Enable testnet payouts first");
+  const payer = fundingWallet();
+  if (Keypair.fromSecret(config.agentSecret).publicKey() !== payer) throw new Error("Signer does not match the funding wallet");
+  const base = localUrl();
+  const authorization = `Bearer ${process.env.PAYSHARE_AGENT_TOKEN ?? ""}`;
+  const request = { redirect: "error", signal: AbortSignal.timeout(90_000) };
+  const hold = await fetch(base + "/api/payments", {
+    ...request, method: "POST", headers: { authorization, "content-type": "application/json" },
+    body: JSON.stringify({ task_id: id, worker_id: id, payment_id: `pay_${id}` }),
+  });
+  const payment = await hold.json();
+  if (!hold.ok) throw new Error(payment.error ?? `Could not reserve payment (HTTP ${hold.status})`);
+  let hash;
+  try {
+    const client = new x402Client();
+    client.setSpendControls({ maxAmountPerPayment: `$${(payment.amount / 100).toFixed(2)}` });
+    const signer = createEd25519Signer(config.agentSecret, "stellar:testnet");
+    client.register("stellar:testnet", new ExactStellarScheme(signer, { url: TESTNET_RPC }));
+    client.registerPolicy((version, options) => options.filter((option) => quoteMatches(version, option, payment)));
+    const http = new x402HTTPClient(client);
+    const url = `${base}/paid/deliverable/${id}`;
+    const headers = { authorization, "x-payshare-attempt": payment.attempt };
+    const quote = await fetch(url, { ...request, headers });
+    if (quote.status !== 402) throw new Error(`Expected a payment quote, got HTTP ${quote.status}`);
+    const terms = http.getPaymentRequiredResponse((name) => quote.headers.get(name));
+    await quote.body?.cancel();
+    const payload = await client.createPaymentPayload(terms);
+    const response = await fetch(url, {
+      ...request, headers: { ...headers, ...http.encodePaymentSignatureHeader(payload) },
+    });
+    if (!response.ok) throw new Error(`Payment submission returned HTTP ${response.status}`);
+    const settlement = http.getPaymentSettleResponse((name) => response.headers.get(name));
+    await response.body?.cancel();
+    hash = validateSettlement(settlement);
+    await updateProjectState((state) => {
+      const current = state.payouts[id];
+      if (current.attempt !== payment.attempt || !current.submittedAt) throw new Error("Payout state changed");
+      current.candidateTx = hash;
+    });
+    const result = await finishPayout(id, payment, hash);
+    console.log(`Paid ${(result.amount / 100).toFixed(2)} USDC: https://stellar.expert/explorer/testnet/tx/${result.tx}`);
+  } catch (error) {
+    await updateProjectState((state) => {
+      const current = state.payouts[id];
+      if (current.attempt !== payment.attempt || current.status === "paid") return;
+      // The server writes submittedAt before a signature can reach the facilitator.
+      // With no submission it is safe to release the reservation under the same lock.
+      if (!current.submittedAt) {
+        state.payouts[id] = { id: payment.id, status: "pending", error: "Last attempt stopped before submission" };
+      } else {
+        current.status = hash ? "processing" : "failed";
+        current.error = "Check the Stellar ledger before taking further action";
+      }
+    });
+    throw error;
+  }
 }
 
-async function pay() {
-  const s = await readState();
-
-  // GATE 1: no payment until the client has confirmed.
-  if (!s.clientConfirmed) {
-    console.log("✗ Not paying: the client hasn't confirmed the work yet.\n  Run: node src/payshare-agent.mjs confirm");
+async function main([command, id, suppliedHash]) {
+  requireTestnet(config.network, config.networkPassphrase);
+  if (command === "status") {
+    const state = await readProjectState();
+    for (const worker of PROJECT.workers) {
+      const payment = state.payouts[worker.id];
+      console.log(`${worker.id}: ${payment.status}${payment.tx ? ` (${payment.tx})` : ""}`);
+    }
     return;
   }
-
-  const signer = createEd25519Signer(config.agentSecret, config.network);
-
-  for (const w of PROJECT.workers) {
-    s.payouts[w.id] ??= { status: "pending" };
-    const p = s.payouts[w.id];
-
-    // GATE 2: never pay twice.
-    if (p.status === "paid") { console.log(`↷ ${w.name}: already paid, skipping`); continue; }
-    if (p.status === "processing") {
-      console.log(`⚠ ${w.name}: a previous run didn't finish. Check the explorer before retrying (the agent won't guess).`);
-      continue;
-    }
-
-    // Write "processing" to the file BEFORE sending, so even a crash can't lead to a double payment.
-    p.status = "processing";
-    await saveState(s);
-
-    try {
-      // GATE 3: pay at most this worker's agreed allocation. If the server quotes more, nothing is signed.
-      const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
-        schemes: [{ network: config.network, client: new ExactStellarScheme(signer, { url: config.rpcUrl }) }],
-        spendControls: { maxAmountPerPayment: `$${w.allocation}` },
-      });
-      const res = await paidFetch(`${config.apiBaseUrl}/paid/deliverable/${w.id}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const header = res.headers.get("PAYMENT-RESPONSE");
-      const settlement = header ? decodePaymentResponseHeader(header) : null;
-      if (!settlement?.success) throw new Error("payment did not settle");
-
-      p.status = "paid";
-      p.tx = settlement.transaction;
-      p.paidAt = new Date().toISOString();
-      delete p.error;
-      console.log(`✓ ${w.name}: paid ${w.allocation} USDC  ${explorer.tx(p.tx)}`);
-    } catch (e) {
-      p.status = "failed"; // safe to retry: the payment did not go through
-      p.error = e.message;
-      console.log(`✗ ${w.name}: ${e.message}`);
-    }
-    await saveState(s);
+  if (!PROJECT.workers.some((worker) => worker.id === id)) throw new Error("Provide a valid project task ID");
+  if (command === "pay") return pay(id);
+  if (command === "reconcile") {
+    const payment = (await readProjectState()).payouts[id];
+    const hash = payment.candidateTx ?? suppliedHash;
+    if (!payment.submittedAt || !validHash(hash)) throw new Error("Provide the testnet transaction hash for a submitted payout");
+    const result = await finishPayout(id, payment, hash);
+    console.log(`Verified payment ${result.tx}`);
+    return;
   }
-  console.log("\nRun 'status' to see the summary.");
+  throw new Error("Use status, pay <task-id>, or reconcile <task-id> [transaction-hash]");
 }
 
-async function reset() {
-  await saveState(freshState());
-  console.log("✓ State reset. (Testnet only: this does not undo any payments.)");
+try {
+  await main(process.argv.slice(2));
+} catch (error) {
+  console.error(error.message);
+  process.exitCode = 1;
 }
-
-const commands = { status, confirm, pay, reset };
-const run = commands[process.argv[2]];
-if (!run) { console.log("Usage: node src/payshare-agent.mjs status | confirm | pay | reset"); process.exit(1); }
-await run();
