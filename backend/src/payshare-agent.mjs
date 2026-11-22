@@ -3,6 +3,7 @@
 //         node src/payshare-agent.mjs confirm   (stand-in for the client's "work completed" button)
 //         node src/payshare-agent.mjs pay       (the agent runs the payouts)
 //         node src/payshare-agent.mjs reset     (start over: testnet only)
+//         node src/payshare-agent.mjs reconcile (read-only ledger check)
 import fs from "node:fs/promises";
 import { wrapFetchWithPaymentFromConfig, decodePaymentResponseHeader } from "@x402/fetch";
 import { createEd25519Signer } from "@x402/stellar";
@@ -149,6 +150,28 @@ async function pay() {
   console.log("\nRun 'status' to see the summary.");
 }
 
+// Read-only check: never upgrades a payment to "paid" without transfer verification.
+async function reconcile() {
+  requireTestnet(config.network, config.networkPassphrase);
+  const s = await readState();
+  validatePayoutHistory(s, PROJECT.workers.map((w) => w.id));
+  await verifyHorizonNetwork(config.horizonUrl, config.networkPassphrase);
+  for (const worker of PROJECT.workers) {
+    const payout = s.payouts[worker.id];
+    if (!payout.tx) {
+      console.log(`${worker.name}: ${payout.status} (no transaction hash recorded)`);
+      continue;
+    }
+    try {
+      await verifyTransactionOnHorizon(payout.tx, config.horizonUrl);
+      console.log(`${worker.name}: transaction succeeded on testnet, but recipient, USDC asset and amount still require verification. ${explorer.tx(payout.tx)}`);
+    } catch (error) {
+      console.log(`${worker.name}: could not confirm transaction: ${error.message}`);
+    }
+  }
+  console.log("Read-only reconciliation complete. No payment statuses changed.");
+}
+
 async function init() {
   if (process.env.NODE_ENV === "production") throw new Error("Demo initialization is disabled in production");
   const file = await fs.open(STATE_FILE, "wx", 0o600);
@@ -164,7 +187,7 @@ async function reset() {
   throw new Error("Reset is disabled: use a new testnet project to avoid duplicate payments");
 }
 
-const commands = { status, init, confirm, pay, reset };
+const commands = { status, init, confirm, pay, reset, reconcile };
 const run = commands[process.argv[2]];
-if (!run) { console.log("Usage: node src/payshare-agent.mjs status | init | confirm | pay | reset"); process.exit(1); }
-await (process.argv[2] === "status" ? run() : withPayoutLock(run));
+if (!run) { console.log("Usage: node src/payshare-agent.mjs status | init | confirm | pay | reset | reconcile"); process.exit(1); }
+await (["status", "reconcile"].includes(process.argv[2]) ? run() : withPayoutLock(run));
