@@ -71,7 +71,7 @@ moneyRouter.get("/projects/:id/money-summary", async (req, res) => {
     worker_pool: workerPool,
     paid,
     pending,
-    remaining: isWorker ? null : funded - paid - pending, // not listed for workers in the MVP (Privacy Matrix)
+    remaining: isWorker ? null : Math.max(0, funded - paid - pending), // not listed for workers in the MVP (Privacy Matrix)
   });
 });
 
@@ -112,6 +112,9 @@ moneyRouter.get("/projects/:id/payments", async (req, res) => {
   });
 });
 moneyRouter.post("/funding", async (req, res) => {
+  if (process.env.ENABLE_DEMO_FUNDING !== "true" || process.env.NODE_ENV === "production") {
+    return res.status(403).json({ error: "Demo funding requests are disabled" });
+  }
   if (req.auth.role !== "client") return res.status(403).json({ error: "client only" });
   let request;
   try { request = validateFundingRequest(req.body); }
