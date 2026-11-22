@@ -1,7 +1,7 @@
-import { Keypair } from "@stellar/stellar-sdk";
+import { Keypair, StrKey } from "@stellar/stellar-sdk";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients } from "../src/payout-validation.mjs";
+import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients, validateUsdcConfig } from "../src/payout-validation.mjs";
 
 test("requires a successful settlement and a transaction hash", () => {
   const hash = "a".repeat(64);
@@ -88,4 +88,18 @@ test("worker recipients must be unique with valid allocations", () => {
   assert.throws(() => validateWorkerRecipients([a, { ...b, wallet: "not-a-wallet" }]), /Invalid Stellar wallet/);
   const badChecksum = walletB.slice(0, -1) + (walletB.endsWith("A") ? "B" : "A");
   assert.throws(() => validateWorkerRecipients([a, { ...b, wallet: badChecksum }]), /Invalid Stellar wallet/);
+});
+
+test("USDC configuration requires valid Stellar identifiers", () => {
+  const valid = {
+    code: "USDC",
+    issuer: Keypair.fromRawEd25519Seed(Buffer.alloc(32, 3)).publicKey(),
+    contractId: StrKey.encodeContract(Buffer.alloc(32, 4)),
+    decimals: 7,
+  };
+  assert.equal(validateUsdcConfig(valid), true);
+  assert.throws(() => validateUsdcConfig({ ...valid, code: "XLM" }), /USDC asset code/);
+  assert.throws(() => validateUsdcConfig({ ...valid, issuer: "bad" }), /issuer/);
+  assert.throws(() => validateUsdcConfig({ ...valid, contractId: "bad" }), /contract ID/);
+  assert.throws(() => validateUsdcConfig({ ...valid, decimals: 6 }), /7 decimals/);
 });
