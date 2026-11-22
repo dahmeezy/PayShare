@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import { Router } from "express";
 import { explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
+import { proposeAllocationChange } from "./allocation-change.mjs";
 
 const PROJECT_ID = "proj_demo"; // TODO: real project ids once the projects feature exists
 const STATE_FILE = "payshare-state.json"; // written by the payout agent (run both from the backend folder)
@@ -109,4 +110,12 @@ moneyRouter.get("/projects/:id/payments", async (req, res) => {
     // Workers get their own payments plus overall progress only (Privacy Matrix)
     progress: { paid: all.filter((p) => p.status === "paid").length, total: all.length },
   });
+});
+// Proposals only: never modify agreed worker allocations without approvals.
+moneyRouter.post("/allocation-changes", (req, res) => {
+  if (!["contractor", "client"].includes(req.auth.role)) return res.status(403).json({ error: "forbidden" });
+  try {
+    const proposal = proposeAllocationChange(req.body, PROJECT.workers);
+    res.status(202).json({ ...proposal, saved: false, message: "Preview only; no allocation was changed" });
+  } catch (error) { res.status(400).json({ error: error.message }); }
 });
