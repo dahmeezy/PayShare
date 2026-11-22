@@ -99,3 +99,14 @@ export async function verifyHorizonNetwork(horizonUrl, expectedPassphrase, fetch
   }
   return true;
 }
+
+/**
+ * This prototype must never move real-money assets on Stellar public network.
+ * The current demo confirmation is not authenticated.
+ */
+export function requireTestnet(network, passphrase) {
+  if (network !== "stellar:testnet" || passphrase !== "Test SDF Network ; September 2015") {
+    throw new Error("PayShare demo payouts are restricted to Stellar testnet");
+  }
+  return true;
+}
