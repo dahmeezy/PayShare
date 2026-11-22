@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>PayShare | Project money</title>
+  <link rel="stylesheet" href="/money/styles.css">
+  <script type="module" src="/money/app.js"></script>
+</head>
+<body>
+  <header><strong>PayShare</strong><span>Stellar testnet</span></header>
+  <main>
+    <h1>Project money</h1>
+    <form id="login">
+      <label>Project access token <input type="password" name="token" required autocomplete="off"></label>
+      <button>Open project</button>
+    </form>
+    <p id="notice" role="status" aria-live="polite"></p>
+    <nav id="tabs" aria-label="Project sections" hidden></nav>
+    <section id="content" aria-labelledby="section-title"></section>
+  </main>
+</body>
+</html>

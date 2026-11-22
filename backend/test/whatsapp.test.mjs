@@ -24,3 +24,15 @@ test("rejects empty and oversized messages", () => {
   assert.throws(() => validateWhatsAppDraft({ ...valid, message: "  " }, ["amara"]));
   assert.throws(() => validateWhatsAppDraft({ ...valid, message: "x".repeat(1001) }, ["amara"]));
 });
+
+test("share links carry status text and an HTTPS sign-in link, with no payment action", async () => {
+  const { createWhatsAppLink } = await import("../src/whatsapp.mjs");
+  const draft = { status: "draft", sent: false, message: "Payment update", message_type: "payment_update" };
+  const result = createWhatsAppLink(draft, "2348012345678", "https://payshare.example");
+  assert.equal(result.sent, false);
+  assert.equal(result.landing_url, "https://payshare.example/money?section=payments");
+  assert.equal(new URL(result.share_url).host, "wa.me");
+  assert.match(new URL(result.share_url).searchParams.get("text"), /PayShare to review/);
+  assert.throws(() => createWhatsAppLink(draft, "1234", "https://payshare.example"));
+  assert.throws(() => createWhatsAppLink(draft, "2348012345678", "http://payshare.example"));
+});
