@@ -177,3 +177,12 @@ export function summarizePayouts(workers, state) {
   }
   return { paid: paidCents / 100, verifying: verifyingCents / 100, pending: pendingCents / 100 };
 }
+
+/**
+ * The API must not invent pending payouts when its state file is missing.
+ * A missing/corrupt file means the payment status is unknown.
+ */
+export function requireValidPayouts(state, workerIds) {
+  validatePayoutHistory(state, workerIds);
+  return state.payouts;
+}
