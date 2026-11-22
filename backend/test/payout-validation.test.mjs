@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet } from "../src/payout-validation.mjs";
+import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients } from "../src/payout-validation.mjs";
 
 test("requires a successful settlement and a transaction hash", () => {
   const hash = "a".repeat(64);
@@ -72,4 +72,17 @@ test("demo payout refuses public Stellar network", () => {
   assert.equal(requireTestnet("stellar:testnet", "Test SDF Network ; September 2015"), true);
   assert.throws(() => requireTestnet("stellar:pubnet", "Public Global Stellar Network ; September 2015"), /restricted to Stellar testnet/);
   assert.throws(() => requireTestnet("stellar:testnet", "Public Global Stellar Network ; September 2015"), /restricted to Stellar testnet/);
+});
+
+test("worker recipients must be unique with valid allocations", () => {
+  const walletA = "G" + "A".repeat(55);
+  const walletB = "G" + "B".repeat(55);
+  const a = { id: "amara", wallet: walletA, allocation: 1.5 };
+  const b = { id: "bisi", wallet: walletB, allocation: 2.5 };
+  assert.equal(validateWorkerRecipients([a, b]), true);
+  assert.throws(() => validateWorkerRecipients([a, { ...b, wallet: walletA }]), /Duplicate worker wallet/);
+  assert.throws(() => validateWorkerRecipients([a, { ...b, id: "amara" }]), /Duplicate worker ID/);
+  assert.throws(() => validateWorkerRecipients([a, { ...b, allocation: -1 }]), /Invalid allocation/);
+  assert.throws(() => validateWorkerRecipients([a, { ...b, allocation: 1.234 }]), /Invalid allocation/);
+  assert.throws(() => validateWorkerRecipients([a, { ...b, wallet: "not-a-wallet" }]), /Invalid Stellar wallet/);
 });
