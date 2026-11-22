@@ -1,3 +1,5 @@
+import { StrKey } from "@stellar/stellar-sdk";
+
 // Check the x402 facilitator's settlement response before recording a payout.
 // This does not replace independent on-chain verification.
 export function validateSettlement(settlement) {
@@ -121,7 +123,7 @@ export function validateWorkerRecipients(workers) {
   const wallets = new Set();
   for (const worker of workers) {
     if (typeof worker?.id !== "string" || !worker.id.trim()) throw new Error("Worker ID is required");
-    if (typeof worker.wallet !== "string" || !/^G[A-Z2-7]{55}$/.test(worker.wallet)) {
+    if (typeof worker.wallet !== "string" || !StrKey.isValidEd25519PublicKey(worker.wallet)) {
       throw new Error(`Invalid Stellar wallet for worker ${worker.id}`);
     }
     if (ids.has(worker.id)) throw new Error(`Duplicate worker ID: ${worker.id}`);
