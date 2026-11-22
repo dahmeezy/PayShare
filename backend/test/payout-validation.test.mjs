@@ -25,3 +25,11 @@ test("reset is blocked after any payout attempt", () => {
     assert.throws(() => canResetPayouts({ payouts: { amara: { status } } }), /Cannot reset/);
   }
 });
+
+test("rejects unexpected payout states", () => {
+  for (const status of ["unknown", null, ""]) {
+    assert.throws(() => canStartPayout({ clientConfirmed: true, payouts: { amara: { status } } }, "amara"));
+    assert.throws(() => canResetPayouts({ payouts: { amara: { status } } }));
+  }
+  assert.throws(() => canResetPayouts({ payouts: [] }), /Invalid payout history/);
+});
