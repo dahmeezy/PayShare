@@ -1,7 +1,7 @@
 import { Asset, Keypair } from "@stellar/stellar-sdk";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients, validateUsdcConfig, summarizePayouts } from "../src/payout-validation.mjs";
+import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients, validateUsdcConfig, summarizePayouts, summarizePayoutCents } from "../src/payout-validation.mjs";
 
 test("requires a successful settlement and a transaction hash", () => {
   const hash = "a".repeat(64);
@@ -118,4 +118,21 @@ test("payout summary does not count processing transfers as paid", () => {
     chidi: { status: "pending" },
   } };
   assert.deepEqual(summarizePayouts(workers, state), { paid: 1.5, verifying: 2.5, pending: 3 });
+});
+
+test("money API totals count processing separately in integer cents", () => {
+  const workers = [
+    { id: "amara", allocation: 1.5 },
+    { id: "bisi", allocation: 2.5 },
+    { id: "chidi", allocation: 3 },
+  ];
+  const payouts = {
+    amara: { status: "paid", tx: "a".repeat(64) },
+    bisi: { status: "processing" },
+    chidi: { status: "pending" },
+  };
+  assert.deepEqual(summarizePayoutCents(workers, payouts), {
+    paid: 150, verifying: 250, pending: 300,
+  });
+  assert.throws(() => summarizePayoutCents(workers, { ...payouts, bisi: { status: "unknown" } }), /Unknown payout status/);
 });
