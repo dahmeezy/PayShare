@@ -9,6 +9,7 @@ import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config, explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
+import { validateSettlement } from "./payout-validation.mjs";
 
 const STATE_FILE = "payshare-state.json";
 
@@ -64,6 +65,8 @@ async function pay() {
       continue;
     }
 
+    if (p.status === "failed") { console.log("Previous payout outcome uncertain; check Stellar before retrying."); continue; }
+
     // Write "processing" to the file BEFORE sending, so even a crash can't lead to a double payment.
     p.status = "processing";
     await saveState(s);
@@ -79,15 +82,15 @@ async function pay() {
 
       const header = res.headers.get("PAYMENT-RESPONSE");
       const settlement = header ? decodePaymentResponseHeader(header) : null;
-      if (!settlement?.success) throw new Error("payment did not settle");
+      const transaction = validateSettlement(settlement);
 
       p.status = "paid";
-      p.tx = settlement.transaction;
+      p.tx = transaction;
       p.paidAt = new Date().toISOString();
       delete p.error;
       console.log(`✓ ${w.name}: paid ${w.allocation} USDC  ${explorer.tx(p.tx)}`);
     } catch (e) {
-      p.status = "failed"; // safe to retry: the payment did not go through
+      p.status = "processing"; // outcome uncertain: check ledger before retrying
       p.error = e.message;
       console.log(`✗ ${w.name}: ${e.message}`);
     }
