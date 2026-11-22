@@ -75,3 +75,27 @@ export async function verifyTransactionOnHorizon(hash, horizonUrl, fetcher = fet
   }
   return tx.hash;
 }
+
+/**
+ * Ensure the Horizon endpoint is connected to the configured Stellar network.
+ * Prevents a testnet transaction being mistaken for a public-network payment.
+ */
+export async function verifyHorizonNetwork(horizonUrl, expectedPassphrase, fetcher = fetch) {
+  if (typeof expectedPassphrase !== "string" || !expectedPassphrase.trim()) {
+    throw new Error("Expected Stellar network passphrase is required");
+  }
+  const url = new URL(horizonUrl);
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname))) {
+    throw new Error("Horizon URL must use HTTPS");
+  }
+  const response = await fetcher(url.href, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) throw new Error(`Horizon network lookup failed: HTTP ${response.status}`);
+  const network = await response.json();
+  if (network.network_passphrase !== expectedPassphrase) {
+    throw new Error("Horizon network does not match the configured Stellar network");
+  }
+  return true;
+}
