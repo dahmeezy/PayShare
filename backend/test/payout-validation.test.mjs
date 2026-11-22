@@ -1,7 +1,7 @@
 import { Asset, Keypair } from "@stellar/stellar-sdk";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients, validateUsdcConfig, summarizePayouts, summarizePayoutCents } from "../src/payout-validation.mjs";
+import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork, requireTestnet, validateWorkerRecipients, validateUsdcConfig, summarizePayouts, summarizePayoutCents, requireValidPayouts } from "../src/payout-validation.mjs";
 
 test("requires a successful settlement and a transaction hash", () => {
   const hash = "a".repeat(64);
@@ -135,4 +135,18 @@ test("money API totals count processing separately in integer cents", () => {
     paid: 150, verifying: 250, pending: 300,
   });
   assert.throws(() => summarizePayoutCents(workers, { ...payouts, bisi: { status: "unknown" } }), /Unknown payout status/);
+});
+
+test("API rejects missing or corrupted payout history instead of inventing payments", () => {
+  const ids = ["amara", "bisi"];
+  const valid = { clientConfirmed: true, payouts: {
+    amara: { status: "paid", tx: "a".repeat(64) },
+    bisi: { status: "processing" },
+  } };
+  assert.deepEqual(requireValidPayouts(valid, ids), valid.payouts);
+  assert.throws(() => requireValidPayouts(null, ids), /Invalid payout history/);
+  assert.throws(() => requireValidPayouts({ clientConfirmed: false, payouts: {} }, ids), /do not match/);
+  assert.throws(() => requireValidPayouts({
+    ...valid, payouts: { ...valid.payouts, amara: { status: "paid" } },
+  }, ids), /no valid transaction hash/);
 });
