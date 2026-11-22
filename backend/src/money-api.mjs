@@ -5,17 +5,26 @@ import fs from "node:fs/promises";
 import { Router } from "express";
 import { explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
+import { requireValidPayouts } from "./payout-validation.mjs";
 
 const PROJECT_ID = "proj_demo"; // TODO: real project ids once the projects feature exists
 const STATE_FILE = "payshare-state.json"; // written by the payout agent (run both from the backend folder)
 const cents = (usd) => Math.round(usd * 100);
 
 async function readPayouts() {
-  try { return JSON.parse(await fs.readFile(STATE_FILE, "utf8")).payouts ?? {}; }
-  catch { return {}; }
+  const state = JSON.parse(await fs.readFile(STATE_FILE, "utf8"));
+  return requireValidPayouts(state, PROJECT.workers.map((w) => w.id));
 }
 
 export const moneyRouter = Router();
+
+// Missing or corrupt payout history is not the same as unpaid workers.
+const withPayouts = (handler) => async (req, res) => {
+  let payouts;
+  try { payouts = await readPayouts(); }
+  catch { return res.status(503).json({ error: "Payment history unavailable; cannot safely report payment status" }); }
+  return handler(req, res, payouts);
+};
 
 // Local-dev CORS so the frontend (another port) can call us. Remove or tighten before any real deployment.
 moneyRouter.use((req, res, next) => {
@@ -51,8 +60,7 @@ const visibleWorkers = (auth) =>
   auth.role === "worker" ? PROJECT.workers.filter((w) => w.id === auth.workerId) : PROJECT.workers;
 
 // H2: GET /projects/{id}/money-summary
-moneyRouter.get("/projects/:id/money-summary", async (req, res) => {
-  const payouts = await readPayouts();
+moneyRouter.get("/projects/:id/money-summary", withPayouts((req, res, payouts) => {
   const totalBudget = cents(PROJECT.budget);
   const expenses = cents(PROJECT.expenses);
   const contractorComp = cents(PROJECT.contractorPay);
@@ -72,11 +80,10 @@ moneyRouter.get("/projects/:id/money-summary", async (req, res) => {
     pending,
     remaining: isWorker ? null : funded - paid - pending, // not listed for workers in the MVP (Privacy Matrix)
   });
-});
+}));
 
 // GET /projects/{id}/allocations
-moneyRouter.get("/projects/:id/allocations", async (req, res) => {
-  const payouts = await readPayouts();
+moneyRouter.get("/projects/:id/allocations", withPayouts((req, res, payouts) => {
   res.json(visibleWorkers(req.auth).map((w) => ({
     allocation_id: `alloc_${w.id}`,
     worker_id: w.id,
@@ -88,8 +95,7 @@ moneyRouter.get("/projects/:id/allocations", async (req, res) => {
 });
 
 // GET /projects/{id}/payments
-moneyRouter.get("/projects/:id/payments", async (req, res) => {
-  const payouts = await readPayouts();
+moneyRouter.get("/projects/:id/payments", withPayouts((req, res, payouts) => {
   const all = PROJECT.workers.map((w) => {
     const p = payouts[w.id] ?? { status: "pending" };
     return {
