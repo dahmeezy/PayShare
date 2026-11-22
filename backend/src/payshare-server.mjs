@@ -14,7 +14,7 @@ import { requireTestnet, validateUsdcConfig } from "./payout-validation.mjs";
 const { network, usdc, facilitator: fac } = config;
 // This server charges worker wallets directly. Demo authorization is testnet-only.
 requireTestnet(network, config.networkPassphrase);
-validateUsdcConfig(usdc);
+validateUsdcConfig(usdc, config.networkPassphrase);
 
 // ── Rule: the budget breakdown must always balance ──
 // Distributable = Budget - Expenses - Contractor pay. Counted in cents to avoid rounding errors.
