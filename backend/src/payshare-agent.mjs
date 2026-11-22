@@ -25,7 +25,31 @@ async function readState() {
     throw new Error("Cannot read payout history; refusing to continue", { cause: error });
   }
 }
-const saveState = (s) => fs.writeFile(STATE_FILE, JSON.stringify(s, null, 2));
+const saveState = async (s) => {
+  const temp = `${STATE_FILE}.${process.pid}.tmp`;
+  await fs.writeFile(temp, JSON.stringify(s, null, 2), { mode: 0o600 });
+  await fs.rename(temp, STATE_FILE);
+};
+
+// Only one agent process may attempt payouts at a time.
+// After a crash, inspect the ledger before manually removing the lock file.
+async function withPayoutLock(action) {
+  const lockFile = `${STATE_FILE}.lock`;
+  let lock;
+  try {
+    lock = await fs.open(lockFile, "wx", 0o600);
+  } catch (error) {
+    if (error.code === "EEXIST") throw new Error("Another payout run may be active; inspect the lock and Stellar ledger before retrying");
+    throw error;
+  }
+  try {
+    await lock.writeFile(String(process.pid));
+    return await action();
+  } finally {
+    await lock.close();
+    await fs.unlink(lockFile);
+  }
+}
 
 // ── Commands ──
 async function status() {
@@ -119,4 +143,4 @@ async function reset() {
 const commands = { status, confirm, pay, reset };
 const run = commands[process.argv[2]];
 if (!run) { console.log("Usage: node src/payshare-agent.mjs status | confirm | pay | reset"); process.exit(1); }
-await run();
+await (process.argv[2] === "pay" ? withPayoutLock(run) : run());
