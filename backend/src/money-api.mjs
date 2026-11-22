@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import { Router } from "express";
 import { explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
+import { confirmDemoWork } from "./client-confirm.mjs";
 
 const PROJECT_ID = "proj_demo"; // TODO: real project ids once the projects feature exists
 const STATE_FILE = "payshare-state.json"; // written by the payout agent (run both from the backend folder)
@@ -109,4 +110,17 @@ moneyRouter.get("/projects/:id/payments", async (req, res) => {
     // Workers get their own payments plus overall progress only (Privacy Matrix)
     progress: { paid: all.filter((p) => p.status === "paid").length, total: all.length },
   });
+});
+// Demo-only endpoint. Disabled by default: x-demo-role is not real authentication.
+moneyRouter.post("/projects/:id/client-confirm", async (req, res) => {
+  if (process.env.ENABLE_DEMO_CONFIRM !== "true" || process.env.NODE_ENV === "production") {
+    return res.status(403).json({ error: "Demo confirmation is disabled" });
+  }
+  if (req.auth.role !== "client") return res.status(403).json({ error: "client only" });
+  if (req.body?.confirmed !== true) return res.status(400).json({ error: "confirmed must be true" });
+  try {
+    res.json(await confirmDemoWork(STATE_FILE, req.auth.role, req.body.confirmed));
+  } catch (error) {
+    res.status(409).json({ error: error.message });
+  }
 });
