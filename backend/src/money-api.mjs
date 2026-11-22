@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import { Router } from "express";
 import { explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
-import { requireValidPayouts } from "./payout-validation.mjs";
+import { requireValidPayouts, summarizePayoutCents } from "./payout-validation.mjs";
 
 const PROJECT_ID = "proj_demo"; // TODO: real project ids once the projects feature exists
 const STATE_FILE = "payshare-state.json"; // written by the payout agent (run both from the backend folder)
@@ -67,9 +67,7 @@ moneyRouter.get("/projects/:id/money-summary", withPayouts((req, res, payouts) =
   const workerPool = totalBudget - expenses - contractorComp;
   const funded = totalBudget; // TODO: real funding record (row 10); the demo assumes the client funded in full
   const allocated = PROJECT.workers.reduce((sum, w) => sum + cents(w.allocation), 0);
-  const paid = PROJECT.workers.filter((w) => payouts[w.id]?.status === "paid").reduce((sum, w) => sum + cents(w.allocation), 0);
-  const verifying = PROJECT.workers.filter((w) => payouts[w.id].status === "processing").reduce((sum, w) => sum + cents(w.allocation), 0);
-  const pending = allocated - paid - verifying;
+  const { paid, verifying, pending } = summarizePayoutCents(PROJECT.workers, payouts);
   const isWorker = req.auth.role === "worker";
   res.json({
     total_budget: totalBudget,
