@@ -9,7 +9,7 @@ import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config, explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
-import { validateSettlement, canResetPayouts, validatePayoutHistory } from "./payout-validation.mjs";
+import { validateSettlement, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon } from "./payout-validation.mjs";
 
 const STATE_FILE = "payshare-state.json";
 
@@ -118,6 +118,8 @@ async function pay() {
       const header = res.headers.get("PAYMENT-RESPONSE");
       const settlement = header ? decodePaymentResponseHeader(header) : null;
       const transaction = validateSettlement(settlement);
+      // A facilitator response alone is not proof of a successful ledger transaction.
+      await verifyTransactionOnHorizon(transaction, config.horizonUrl);
 
       p.status = "paid";
       p.tx = transaction;
@@ -147,7 +149,6 @@ async function reset() {
   validatePayoutHistory(current, PROJECT.workers.map((w) => w.id));
   canResetPayouts(current);
   throw new Error("Reset is disabled: use a new testnet project to avoid duplicate payments");
-  console.log("✓ State reset. (Testnet only: this does not undo any payments.)");
 }
 
 const commands = { status, init, confirm, pay, reset };
