@@ -138,3 +138,19 @@ export function validateWorkerRecipients(workers) {
   }
   return true;
 }
+
+/**
+ * Check the configured token identifiers before enabling paid routes or payouts.
+ * This checks format only; it does not prove the contract is genuine USDC.
+ */
+export function validateUsdcConfig(usdc) {
+  if (!usdc || usdc.code !== "USDC") throw new Error("USDC asset code is required");
+  if (!StrKey.isValidEd25519PublicKey(usdc.issuer || "")) {
+    throw new Error("Invalid USDC issuer wallet");
+  }
+  if (!StrKey.isValidContract(usdc.contractId || "")) {
+    throw new Error("Invalid USDC contract ID");
+  }
+  if (usdc.decimals !== 7) throw new Error("Expected Stellar USDC to use 7 decimals");
+  return true;
+}
