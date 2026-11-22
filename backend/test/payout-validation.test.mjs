@@ -11,7 +11,8 @@ test("requires a successful settlement and a transaction hash", () => {
 
 test("requires client confirmation and a pending payout", () => {
   assert.throws(() => canStartPayout({ clientConfirmed: false }, "amara"));
-  assert.equal(canStartPayout({ clientConfirmed: true, payouts: {} }, "amara"), true);
+  assert.equal(canStartPayout({ clientConfirmed: true, payouts: { amara: { status: "pending" } } }, "amara"), true);
+  assert.throws(() => canStartPayout({ clientConfirmed: true, payouts: {} }, "amara"), /Missing payout record/);
   for (const status of ["paid", "processing", "failed"]) {
     assert.throws(() => canStartPayout({ clientConfirmed: true, payouts: { amara: { status } } }, "amara"));
   }
@@ -19,6 +20,7 @@ test("requires client confirmation and a pending payout", () => {
 
 test("reset is blocked after any payout attempt", () => {
   assert.equal(canResetPayouts({ payouts: { amara: { status: "pending" } } }), true);
+  assert.throws(() => canResetPayouts({ payouts: null }), /Invalid payout history/);
   for (const status of ["processing", "paid", "failed"]) {
     assert.throws(() => canResetPayouts({ payouts: { amara: { status } } }), /Cannot reset/);
   }
