@@ -9,7 +9,7 @@ import { createEd25519Signer } from "@x402/stellar";
 import { ExactStellarScheme } from "@x402/stellar/exact/client";
 import { config, explorer } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
-import { validateSettlement, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon } from "./payout-validation.mjs";
+import { validateSettlement, canResetPayouts, validatePayoutHistory, verifyTransactionOnHorizon, verifyHorizonNetwork } from "./payout-validation.mjs";
 
 const STATE_FILE = "payshare-state.json";
 
@@ -119,6 +119,7 @@ async function pay() {
       const settlement = header ? decodePaymentResponseHeader(header) : null;
       const transaction = validateSettlement(settlement);
       // A facilitator response alone is not proof of a successful ledger transaction.
+      await verifyHorizonNetwork(config.horizonUrl, config.networkPassphrase);
       await verifyTransactionOnHorizon(transaction, config.horizonUrl);
 
       p.status = "paid";
