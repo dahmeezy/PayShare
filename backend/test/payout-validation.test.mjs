@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateSettlement, canStartPayout, canResetPayouts } from "../src/payout-validation.mjs";
+import { validateSettlement, canStartPayout, canResetPayouts, validatePayoutHistory } from "../src/payout-validation.mjs";
 
 test("requires a successful settlement and a transaction hash", () => {
   const hash = "a".repeat(64);
@@ -32,4 +32,13 @@ test("rejects unexpected payout states", () => {
     assert.throws(() => canResetPayouts({ payouts: { amara: { status } } }));
   }
   assert.throws(() => canResetPayouts({ payouts: [] }), /Invalid payout history/);
+});
+
+test("payout history must match all workers", () => {
+  const valid = { clientConfirmed: true, payouts: { amara: { status: "pending" }, bisi: { status: "paid", tx: "a".repeat(64) } } };
+  assert.equal(validatePayoutHistory(valid, ["amara", "bisi"]), true);
+  assert.throws(() => validatePayoutHistory(valid, ["amara"]), /do not match/);
+  assert.throws(() => validatePayoutHistory({ ...valid, payouts: { amara: { status: "pending" } } }, ["amara", "bisi"]), /do not match/);
+  assert.throws(() => validatePayoutHistory({ ...valid, payouts: { amara: { status: "pending" }, bisi: { status: "paid" } } }, ["amara", "bisi"]), /transaction hash/);
+  assert.throws(() => validatePayoutHistory({ ...valid, clientConfirmed: "true" }, ["amara", "bisi"]), /Invalid payout history/);
 });
