@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { authoredRoutes, displayRoute, groups, targetFor } from "./navigation.mjs";
+import { authoredRoutes, displayRoute, groups, roleFor, roleLinks, targetFor } from "./navigation.mjs";
 
 const load = (name) => readFile(new URL(name, import.meta.url), "utf8");
 const frames = JSON.parse(await load("screens.json"));
@@ -42,4 +42,14 @@ test("follows authored project, worker and review paths", () => {
   assert.equal(targetFor("wa09", "CTA", "Fund securely", prototype), "d09");
   assert.equal(targetFor("wa10", "CTA", "Fix securely", prototype), "w12");
   assert.equal(targetFor("a03", "Button", "Log in", prototype), "@home");
+});
+
+
+test("menus keep each role in its own workspace", () => {
+  for (const role of ["contractor", "worker", "client"]) {
+    assert.ok(roleLinks(role).every(([, route]) => route === "@settings" || roleFor(route) === role));
+  }
+  assert.equal(targetFor("md01", "Bottom nav item", "Payments", prototype), "d08");
+  assert.equal(targetFor("w01", "Sidebar item", "Settings", prototype), "@settings");
+  assert.equal(targetFor("a06", "Button", "Join project", prototype), "w01");
 });
