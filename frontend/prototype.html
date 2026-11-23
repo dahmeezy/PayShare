@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>PayShare prototype</title>
+  <link rel="stylesheet" href="ui/tokens.css">
+  <link rel="stylesheet" href="ui/components/button.css">
+  <link rel="stylesheet" href="prototype/prototype.css">
+  <link rel="stylesheet" href="prototype/layout.css">
+  <script type="module" src="prototype/app.mjs"></script>
+</head>
+<body>
+  <a class="skip" href="#screen">Skip to content</a>
+  <main id="screen" tabindex="-1" aria-busy="true">
+    <p class="screen-message">Loading PayShare…</p>
+  </main>
+  <aside id="demo" aria-label="Demo controls">
+    <span>Demo · Sample data</span>
+    <button type="button" class="btn btn-sm" id="explore">Explore screens</button>
+  </aside>
+  <dialog id="catalog" aria-labelledby="catalog-title">
+    <header>
+      <h2 id="catalog-title">Explore PayShare</h2>
+      <button type="button" id="close-catalog" class="btn btn-sm">Close</button>
+    </header>
+    <p>This demo uses sample data. It does not sign in, send messages, or move money.</p>
+    <nav aria-label="Demo roles" id="demo-roles"></nav>
+    <label>Find a screen <input id="screen-filter" type="search" autocomplete="off" placeholder="Search by title or frame ID"></label>
+    <button type="button" class="btn btn-sm" id="theme">Switch theme</button>
+    <div id="catalog-list"></div>
+  </dialog>
+  <p id="notice" role="status" aria-live="polite"></p>
+</body>
+</html>

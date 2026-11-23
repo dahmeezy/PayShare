@@ -1,0 +1,1018 @@
+[
+  {
+    "page": "34:113",
+    "id": "56:12",
+    "name": "A01 · Welcome / landing",
+    "width": 1440,
+    "height": 1186,
+    "route": "a01"
+  },
+  {
+    "page": "34:113",
+    "id": "56:167",
+    "name": "A02 · Sign up",
+    "width": 1440,
+    "height": 1024,
+    "route": "a02"
+  },
+  {
+    "page": "34:113",
+    "id": "56:246",
+    "name": "A03 · Log in",
+    "width": 1440,
+    "height": 1024,
+    "route": "a03"
+  },
+  {
+    "page": "34:113",
+    "id": "56:326",
+    "name": "A04 · Forgot password",
+    "width": 1440,
+    "height": 1024,
+    "route": "a04"
+  },
+  {
+    "page": "34:113",
+    "id": "56:396",
+    "name": "A05 · Verify account",
+    "width": 1440,
+    "height": 1024,
+    "route": "a05"
+  },
+  {
+    "page": "34:113",
+    "id": "56:464",
+    "name": "A06 · Invitation onboarding (worker)",
+    "width": 1440,
+    "height": 1024,
+    "route": "a06"
+  },
+  {
+    "page": "34:113",
+    "id": "56:551",
+    "name": "A07 · Role selection",
+    "width": 1440,
+    "height": 1024,
+    "route": "a07"
+  },
+  {
+    "page": "34:113",
+    "id": "56:635",
+    "name": "A08 · Profile setup",
+    "width": 1440,
+    "height": 1024,
+    "route": "a08"
+  },
+  {
+    "page": "34:113",
+    "id": "56:744",
+    "name": "A09 · Notification permissions",
+    "width": 1440,
+    "height": 1024,
+    "route": "a09"
+  },
+  {
+    "page": "34:113",
+    "id": "56:844",
+    "name": "A10 · First-run dashboard onboarding",
+    "width": 1440,
+    "height": 1024,
+    "route": "a10"
+  },
+  {
+    "page": "30:18",
+    "id": "36:12",
+    "name": "C01 · Dashboard",
+    "width": 1440,
+    "height": 1560,
+    "route": "c01"
+  },
+  {
+    "page": "30:18",
+    "id": "36:556",
+    "name": "C02 · Projects",
+    "width": 1440,
+    "height": 1024,
+    "route": "c02"
+  },
+  {
+    "page": "30:18",
+    "id": "36:833",
+    "name": "C03 · Create project – Details",
+    "width": 1440,
+    "height": 1168,
+    "route": "c03"
+  },
+  {
+    "page": "30:18",
+    "id": "36:1099",
+    "name": "C04 · Create project – Budget",
+    "width": 1440,
+    "height": 1024,
+    "route": "c04"
+  },
+  {
+    "page": "30:18",
+    "id": "36:1376",
+    "name": "C05 · Create project – Invite workers",
+    "width": 1440,
+    "height": 1031,
+    "route": "c05"
+  },
+  {
+    "page": "30:18",
+    "id": "37:772",
+    "name": "C06 · Project overview",
+    "width": 1440,
+    "height": 1242,
+    "route": "c06"
+  },
+  {
+    "page": "30:18",
+    "id": "37:1228",
+    "name": "C07 · Project members",
+    "width": 1440,
+    "height": 1024,
+    "route": "c07"
+  },
+  {
+    "page": "30:18",
+    "id": "37:1568",
+    "name": "C08 · Project activity history",
+    "width": 1440,
+    "height": 1028,
+    "route": "c08"
+  },
+  {
+    "page": "30:18",
+    "id": "37:1877",
+    "name": "C09 · Project settings",
+    "width": 1440,
+    "height": 1046,
+    "route": "c09"
+  },
+  {
+    "page": "30:18",
+    "id": "37:2147",
+    "name": "C10 · Budget &amp; allocations",
+    "width": 1440,
+    "height": 1298,
+    "route": "c10"
+  },
+  {
+    "page": "30:18",
+    "id": "39:1537",
+    "name": "C11 · Worker allocation detail",
+    "width": 1440,
+    "height": 1193,
+    "route": "c11"
+  },
+  {
+    "page": "30:18",
+    "id": "39:1897",
+    "name": "C12 · Propose allocation change (modal)",
+    "width": 1440,
+    "height": 1193,
+    "route": "c12"
+  },
+  {
+    "page": "30:18",
+    "id": "39:2197",
+    "name": "C13 · Allocation change status",
+    "width": 1440,
+    "height": 1133,
+    "route": "c13"
+  },
+  {
+    "page": "30:18",
+    "id": "39:2566",
+    "name": "C14 · Add expense (modal)",
+    "width": 1440,
+    "height": 1298,
+    "route": "c14"
+  },
+  {
+    "page": "30:18",
+    "id": "39:2861",
+    "name": "C15 · Workers",
+    "width": 1440,
+    "height": 1024,
+    "route": "c15"
+  },
+  {
+    "page": "30:18",
+    "id": "42:2448",
+    "name": "C16 · Invite worker (modal)",
+    "width": 1440,
+    "height": 1024,
+    "route": "c16"
+  },
+  {
+    "page": "30:18",
+    "id": "42:2584",
+    "name": "C17 · Worker profile",
+    "width": 1440,
+    "height": 1024,
+    "route": "c17"
+  },
+  {
+    "page": "30:18",
+    "id": "42:2912",
+    "name": "C18 · Tasks",
+    "width": 1440,
+    "height": 1024,
+    "route": "c18"
+  },
+  {
+    "page": "30:18",
+    "id": "42:3247",
+    "name": "C19 · Create task",
+    "width": 1440,
+    "height": 1777,
+    "route": "c19"
+  },
+  {
+    "page": "30:18",
+    "id": "42:3685",
+    "name": "C20 · Task details",
+    "width": 1440,
+    "height": 1542,
+    "route": "c20"
+  },
+  {
+    "page": "30:18",
+    "id": "43:3507",
+    "name": "C21 · Submission review",
+    "width": 1440,
+    "height": 1352,
+    "route": "c21"
+  },
+  {
+    "page": "30:18",
+    "id": "43:3864",
+    "name": "C22 · Incomplete task – resolve",
+    "width": 1440,
+    "height": 1164,
+    "route": "c22"
+  },
+  {
+    "page": "30:18",
+    "id": "43:4197",
+    "name": "C23 · Approvals",
+    "width": 1440,
+    "height": 1044,
+    "route": "c23"
+  },
+  {
+    "page": "30:18",
+    "id": "43:4603",
+    "name": "C24 · Authorize payment",
+    "width": 1440,
+    "height": 1123,
+    "route": "c24"
+  },
+  {
+    "page": "30:18",
+    "id": "43:4897",
+    "name": "C25 · Payout processing",
+    "width": 1440,
+    "height": 1024,
+    "route": "c25"
+  },
+  {
+    "page": "30:18",
+    "id": "44:4244",
+    "name": "C26 · Payment successful",
+    "width": 1440,
+    "height": 1024,
+    "route": "c26"
+  },
+  {
+    "page": "30:18",
+    "id": "44:4575",
+    "name": "C27 · Payment failed",
+    "width": 1440,
+    "height": 1024,
+    "route": "c27"
+  },
+  {
+    "page": "30:18",
+    "id": "44:4895",
+    "name": "C28 · Insufficient project funds",
+    "width": 1440,
+    "height": 1024,
+    "route": "c28"
+  },
+  {
+    "page": "30:18",
+    "id": "44:5192",
+    "name": "C29 · Transactions",
+    "width": 1440,
+    "height": 1024,
+    "route": "c29"
+  },
+  {
+    "page": "30:18",
+    "id": "44:5493",
+    "name": "C30 · Transaction detail &amp; receipt",
+    "width": 1440,
+    "height": 1024,
+    "route": "c30"
+  },
+  {
+    "page": "30:18",
+    "id": "47:4901",
+    "name": "C31 · Agent activity",
+    "width": 1440,
+    "height": 1024,
+    "route": "c31"
+  },
+  {
+    "page": "30:18",
+    "id": "47:5249",
+    "name": "C32 · Notifications",
+    "width": 1440,
+    "height": 1024,
+    "route": "c32"
+  },
+  {
+    "page": "30:18",
+    "id": "47:5507",
+    "name": "C33 · Settings – Appearance",
+    "width": 1440,
+    "height": 1046,
+    "route": "c33"
+  },
+  {
+    "page": "30:18",
+    "id": "47:5803",
+    "name": "C34 · Empty state – no projects",
+    "width": 1440,
+    "height": 1024,
+    "route": "c34"
+  },
+  {
+    "page": "30:18",
+    "id": "47:6009",
+    "name": "C35 · Empty states – new project &amp; loading",
+    "width": 1440,
+    "height": 1024,
+    "route": "c35"
+  },
+  {
+    "page": "30:18",
+    "id": "47:6243",
+    "name": "C01 · Dashboard · Dark",
+    "width": 1440,
+    "height": 1560,
+    "route": "c01-dark"
+  },
+  {
+    "page": "30:18",
+    "id": "47:6479",
+    "name": "C10 · Budget &amp; allocations · Dark",
+    "width": 1440,
+    "height": 1298,
+    "route": "c10-dark"
+  },
+  {
+    "page": "30:18",
+    "id": "47:6704",
+    "name": "C24 · Authorize payment · Dark",
+    "width": 1440,
+    "height": 1123,
+    "route": "c24-dark"
+  },
+  {
+    "page": "30:18",
+    "id": "47:6843",
+    "name": "C26 · Payment successful · Dark",
+    "width": 1440,
+    "height": 1024,
+    "route": "c26-dark"
+  },
+  {
+    "page": "30:18",
+    "id": "47:7008",
+    "name": "C33 · Settings – Appearance · Dark",
+    "width": 1440,
+    "height": 1046,
+    "route": "c33-dark"
+  },
+  {
+    "page": "30:19",
+    "id": "48:12",
+    "name": "MC01 · Dashboard",
+    "width": 390,
+    "height": 987,
+    "route": "mc01"
+  },
+  {
+    "page": "30:19",
+    "id": "48:192",
+    "name": "MC02 · Project overview",
+    "width": 390,
+    "height": 844,
+    "route": "mc02"
+  },
+  {
+    "page": "30:19",
+    "id": "48:352",
+    "name": "MC03 · Budget breakdown",
+    "width": 390,
+    "height": 844,
+    "route": "mc03"
+  },
+  {
+    "page": "30:19",
+    "id": "48:474",
+    "name": "MC04 · Worker allocations",
+    "width": 390,
+    "height": 844,
+    "route": "mc04"
+  },
+  {
+    "page": "30:19",
+    "id": "48:617",
+    "name": "MC05 · Allocation change",
+    "width": 390,
+    "height": 851,
+    "route": "mc05"
+  },
+  {
+    "page": "30:19",
+    "id": "48:736",
+    "name": "MC06 · Workers",
+    "width": 390,
+    "height": 844,
+    "route": "mc06"
+  },
+  {
+    "page": "30:19",
+    "id": "48:881",
+    "name": "MC07 · Create task",
+    "width": 390,
+    "height": 1118,
+    "route": "mc07"
+  },
+  {
+    "page": "30:19",
+    "id": "48:1019",
+    "name": "MC08 · Task review",
+    "width": 390,
+    "height": 844,
+    "route": "mc08"
+  },
+  {
+    "page": "30:19",
+    "id": "48:1140",
+    "name": "MC09 · Payouts",
+    "width": 390,
+    "height": 844,
+    "route": "mc09"
+  },
+  {
+    "page": "30:19",
+    "id": "48:1243",
+    "name": "MC10 · Notifications",
+    "width": 390,
+    "height": 844,
+    "route": "mc10"
+  },
+  {
+    "page": "30:19",
+    "id": "63:21382",
+    "name": "MC01 · Dashboard · 360px",
+    "width": 360,
+    "height": 1067,
+    "route": "mc01-360"
+  },
+  {
+    "page": "30:19",
+    "id": "62:6662",
+    "name": "MC01 · Dashboard · Dark",
+    "width": 390,
+    "height": 987,
+    "route": "mc01-dark"
+  },
+  {
+    "page": "30:19",
+    "id": "62:6760",
+    "name": "MC02 · Project overview · Dark",
+    "width": 390,
+    "height": 844,
+    "route": "mc02-dark"
+  },
+  {
+    "page": "30:20",
+    "id": "51:12",
+    "name": "W01 · Dashboard",
+    "width": 1440,
+    "height": 1115,
+    "route": "w01"
+  },
+  {
+    "page": "30:20",
+    "id": "51:331",
+    "name": "W02 · My tasks",
+    "width": 1440,
+    "height": 1024,
+    "route": "w02"
+  },
+  {
+    "page": "30:20",
+    "id": "51:549",
+    "name": "W03 · Review &amp; accept task",
+    "width": 1440,
+    "height": 1109,
+    "route": "w03"
+  },
+  {
+    "page": "30:20",
+    "id": "51:903",
+    "name": "W04 · Task details – in progress",
+    "width": 1440,
+    "height": 1024,
+    "route": "w04"
+  },
+  {
+    "page": "30:20",
+    "id": "51:1244",
+    "name": "W05 · Submit work",
+    "width": 1440,
+    "height": 1165,
+    "route": "w05"
+  },
+  {
+    "page": "30:20",
+    "id": "51:1548",
+    "name": "W06 · Submission received",
+    "width": 1440,
+    "height": 1024,
+    "route": "w06"
+  },
+  {
+    "page": "30:20",
+    "id": "52:971",
+    "name": "W07 · Changes requested",
+    "width": 1440,
+    "height": 1024,
+    "route": "w07"
+  },
+  {
+    "page": "30:20",
+    "id": "52:1243",
+    "name": "W08 · My allocation &amp; payments",
+    "width": 1440,
+    "height": 1255,
+    "route": "w08"
+  },
+  {
+    "page": "30:20",
+    "id": "52:1564",
+    "name": "W09 · Allocation change request",
+    "width": 1440,
+    "height": 1033,
+    "route": "w09"
+  },
+  {
+    "page": "30:20",
+    "id": "52:1819",
+    "name": "W10 · Report a problem",
+    "width": 1440,
+    "height": 1024,
+    "route": "w10"
+  },
+  {
+    "page": "30:20",
+    "id": "52:2093",
+    "name": "W11 · Payment receipt",
+    "width": 1440,
+    "height": 1024,
+    "route": "w11"
+  },
+  {
+    "page": "30:20",
+    "id": "52:2318",
+    "name": "W12 · Payment history",
+    "width": 1440,
+    "height": 1024,
+    "route": "w12"
+  },
+  {
+    "page": "30:20",
+    "id": "52:2554",
+    "name": "W13 · Notifications",
+    "width": 1440,
+    "height": 1024,
+    "route": "w13"
+  },
+  {
+    "page": "30:20",
+    "id": "62:2325",
+    "name": "W01 · Dashboard · Dark",
+    "width": 1440,
+    "height": 1115,
+    "route": "w01-dark"
+  },
+  {
+    "page": "30:20",
+    "id": "62:2469",
+    "name": "W03 · Review &amp; accept task · Dark",
+    "width": 1440,
+    "height": 1109,
+    "route": "w03-dark"
+  },
+  {
+    "page": "30:20",
+    "id": "62:2575",
+    "name": "W07 · Changes requested · Dark",
+    "width": 1440,
+    "height": 1024,
+    "route": "w07-dark"
+  },
+  {
+    "page": "30:21",
+    "id": "53:12",
+    "name": "MW01 · Dashboard",
+    "width": 390,
+    "height": 941,
+    "route": "mw01"
+  },
+  {
+    "page": "30:21",
+    "id": "53:146",
+    "name": "MW02 · Assigned tasks",
+    "width": 390,
+    "height": 844,
+    "route": "mw02"
+  },
+  {
+    "page": "30:21",
+    "id": "53:269",
+    "name": "MW03 · Task details",
+    "width": 390,
+    "height": 913,
+    "route": "mw03"
+  },
+  {
+    "page": "30:21",
+    "id": "53:423",
+    "name": "MW04 · Voice-note instructions",
+    "width": 390,
+    "height": 853,
+    "route": "mw04"
+  },
+  {
+    "page": "30:21",
+    "id": "53:517",
+    "name": "MW05 · Task acceptance",
+    "width": 390,
+    "height": 893,
+    "route": "mw05"
+  },
+  {
+    "page": "30:21",
+    "id": "53:620",
+    "name": "MW06 · Work submission",
+    "width": 390,
+    "height": 868,
+    "route": "mw06"
+  },
+  {
+    "page": "30:21",
+    "id": "53:721",
+    "name": "MW07 · My allocation",
+    "width": 390,
+    "height": 901,
+    "route": "mw07"
+  },
+  {
+    "page": "30:21",
+    "id": "53:843",
+    "name": "MW08 · Allocation change response",
+    "width": 390,
+    "height": 844,
+    "route": "mw08"
+  },
+  {
+    "page": "30:21",
+    "id": "53:935",
+    "name": "MW09 · Report a problem",
+    "width": 390,
+    "height": 926,
+    "route": "mw09"
+  },
+  {
+    "page": "30:21",
+    "id": "53:1053",
+    "name": "MW10 · Payment history",
+    "width": 390,
+    "height": 844,
+    "route": "mw10"
+  },
+  {
+    "page": "30:21",
+    "id": "63:21480",
+    "name": "MW01 · Dashboard · 360px",
+    "width": 360,
+    "height": 941,
+    "route": "mw01-360"
+  },
+  {
+    "page": "30:21",
+    "id": "62:5435",
+    "name": "MW01 · Dashboard · Dark",
+    "width": 390,
+    "height": 941,
+    "route": "mw01-dark"
+  },
+  {
+    "page": "30:21",
+    "id": "62:5512",
+    "name": "MW02 · Assigned tasks · Dark",
+    "width": 390,
+    "height": 844,
+    "route": "mw02-dark"
+  },
+  {
+    "page": "30:21",
+    "id": "62:5575",
+    "name": "MW06 · Work submission · Dark",
+    "width": 390,
+    "height": 868,
+    "route": "mw06-dark"
+  },
+  {
+    "page": "30:22",
+    "id": "54:12",
+    "name": "D01 · Client dashboard",
+    "width": 1440,
+    "height": 1024,
+    "route": "d01"
+  },
+  {
+    "page": "30:22",
+    "id": "54:331",
+    "name": "D02 · Projects",
+    "width": 1440,
+    "height": 1024,
+    "route": "d02"
+  },
+  {
+    "page": "30:22",
+    "id": "54:493",
+    "name": "D03 · Project overview",
+    "width": 1440,
+    "height": 1024,
+    "route": "d03"
+  },
+  {
+    "page": "30:22",
+    "id": "54:771",
+    "name": "D04 · Project finances",
+    "width": 1440,
+    "height": 1091,
+    "route": "d04"
+  },
+  {
+    "page": "30:22",
+    "id": "54:1090",
+    "name": "D05 · Worker allocations",
+    "width": 1440,
+    "height": 1024,
+    "route": "d05"
+  },
+  {
+    "page": "30:22",
+    "id": "54:1342",
+    "name": "D06 · Deliverable review &amp; confirmation",
+    "width": 1440,
+    "height": 1024,
+    "route": "d06"
+  },
+  {
+    "page": "30:22",
+    "id": "54:1582",
+    "name": "D07 · Budget change approval",
+    "width": 1440,
+    "height": 1083,
+    "route": "d07"
+  },
+  {
+    "page": "30:22",
+    "id": "54:1886",
+    "name": "D08 · Transactions",
+    "width": 1440,
+    "height": 1024,
+    "route": "d08"
+  },
+  {
+    "page": "30:22",
+    "id": "54:2095",
+    "name": "D09 · Fund project",
+    "width": 1440,
+    "height": 1024,
+    "route": "d09"
+  },
+  {
+    "page": "30:22",
+    "id": "62:3649",
+    "name": "D01 · Client dashboard · Dark",
+    "width": 1440,
+    "height": 1024,
+    "route": "d01-dark"
+  },
+  {
+    "page": "30:22",
+    "id": "62:3771",
+    "name": "D04 · Project finances · Dark",
+    "width": 1440,
+    "height": 1091,
+    "route": "d04-dark"
+  },
+  {
+    "page": "30:22",
+    "id": "62:3893",
+    "name": "D07 · Budget change approval · Dark",
+    "width": 1440,
+    "height": 1083,
+    "route": "d07-dark"
+  },
+  {
+    "page": "30:23",
+    "id": "55:12",
+    "name": "MD01 · Dashboard",
+    "width": 390,
+    "height": 887,
+    "route": "md01"
+  },
+  {
+    "page": "30:23",
+    "id": "55:145",
+    "name": "MD02 · Project overview",
+    "width": 390,
+    "height": 844,
+    "route": "md02"
+  },
+  {
+    "page": "30:23",
+    "id": "55:279",
+    "name": "MD03 · Financial breakdown",
+    "width": 390,
+    "height": 844,
+    "route": "md03"
+  },
+  {
+    "page": "30:23",
+    "id": "55:397",
+    "name": "MD04 · Worker allocations",
+    "width": 390,
+    "height": 844,
+    "route": "md04"
+  },
+  {
+    "page": "30:23",
+    "id": "55:565",
+    "name": "MD05 · Deliverable review",
+    "width": 390,
+    "height": 844,
+    "route": "md05"
+  },
+  {
+    "page": "30:23",
+    "id": "55:647",
+    "name": "MD06 · Budget change approval",
+    "width": 390,
+    "height": 844,
+    "route": "md06"
+  },
+  {
+    "page": "30:23",
+    "id": "55:738",
+    "name": "MD07 · Notifications",
+    "width": 390,
+    "height": 844,
+    "route": "md07"
+  },
+  {
+    "page": "30:23",
+    "id": "63:21557",
+    "name": "MD01 · Dashboard · 360px",
+    "width": 360,
+    "height": 927,
+    "route": "md01-360"
+  },
+  {
+    "page": "30:23",
+    "id": "62:5934",
+    "name": "MD01 · Dashboard · Dark",
+    "width": 390,
+    "height": 887,
+    "route": "md01-dark"
+  },
+  {
+    "page": "30:23",
+    "id": "62:6000",
+    "name": "MD03 · Financial breakdown · Dark",
+    "width": 390,
+    "height": 844,
+    "route": "md03-dark"
+  },
+  {
+    "page": "30:23",
+    "id": "62:6074",
+    "name": "MD05 · Deliverable review · Dark",
+    "width": 390,
+    "height": 844,
+    "route": "md05-dark"
+  },
+  {
+    "page": "30:24",
+    "id": "57:12",
+    "name": "WhatsApp · Overview",
+    "width": 4600,
+    "height": 66,
+    "route": "whatsapp"
+  },
+  {
+    "page": "30:24",
+    "id": "57:26",
+    "name": "WA01 · Project invitation",
+    "width": 390,
+    "height": 844,
+    "route": "wa01"
+  },
+  {
+    "page": "30:24",
+    "id": "57:90",
+    "name": "WA02 · Task acceptance",
+    "width": 390,
+    "height": 844,
+    "route": "wa02"
+  },
+  {
+    "page": "30:24",
+    "id": "57:160",
+    "name": "WA03 · Deadline reminder",
+    "width": 390,
+    "height": 844,
+    "route": "wa03"
+  },
+  {
+    "page": "30:24",
+    "id": "57:247",
+    "name": "WA04 · Submit work by chat",
+    "width": 390,
+    "height": 844,
+    "route": "wa04"
+  },
+  {
+    "page": "30:24",
+    "id": "57:357",
+    "name": "WA05 · Approved &amp; paid",
+    "width": 390,
+    "height": 844,
+    "route": "wa05"
+  },
+  {
+    "page": "30:24",
+    "id": "57:424",
+    "name": "WA06 · Allocation change request",
+    "width": 390,
+    "height": 844,
+    "route": "wa06"
+  },
+  {
+    "page": "30:24",
+    "id": "57:517",
+    "name": "WA07 · Incomplete task follow-up",
+    "width": 390,
+    "height": 844,
+    "route": "wa07"
+  },
+  {
+    "page": "30:24",
+    "id": "57:578",
+    "name": "WA08 · Client deliverable confirmation",
+    "width": 390,
+    "height": 844,
+    "route": "wa08"
+  },
+  {
+    "page": "30:24",
+    "id": "57:645",
+    "name": "WA09 · Budget change &amp; funding",
+    "width": 390,
+    "height": 844,
+    "route": "wa09"
+  },
+  {
+    "page": "30:24",
+    "id": "57:730",
+    "name": "WA10 · Payment issue &amp; help",
+    "width": 390,
+    "height": 844,
+    "route": "wa10"
+  }
+]
