@@ -68,3 +68,48 @@ Field-level notes where a response differs by role.
 - **Individual worker allocations**: contractor and client see all; a worker sees only their own
 - **WhatsApp message alone never authorizes a financial action** — no financial endpoint responds to WhatsApp-only triggers
 - **Expenses** must be approved (`approved: true`) to reduce the budget — unapproved expenses are documented but do not affect summaries
+### Implementation Notes (A04)
+
+- **contractor_compensation**: Server-side filtering implemented in `role-constants.mjs::filterContractorCompensation`. Returns `null` for worker roles. Verified in RBAC tests.
+
+- **Individual worker allocations**: Server-side filtering implemented in `role-constants.mjs::filterWorkerAllocations`. Contractor/client see all; worker sees only own allocation. Verified in RBAC tests.
+
+- **Payments made and pending**: Server-side filtering implemented in `role-constants.mjs::filterPayments`. Contractor/client see full detail; worker sees own payments + overall progress. Verified in RBAC tests.
+
+- **Transaction history**: Server-side filtering implemented in `role-constants.mjs::filterTransactionHistory`. Project-level for contractor/client; own transactions only for worker.
+
+- **Individual worker allocations in project members**: Server-side filtering implemented in `role-constants.mjs::filterProjectMembers`. Shows "Full breakdown" for contractor/client; "Own allocation + totals" for worker.
+
+- **Expenses**: Server-side filtering implemented in `role-constants.mjs::filterExpenses`. Contractor: all expenses; Worker: own expenses; Client: all expenses.
+
+- **Route guards**: Implemented in `frontend/index.html` - users without proper role context are redirected to role selection screen.
+
+- **Hidden data**: Absent from responses (not blurred or disabled). Implemented in `hidden-control.mjs::applyHiddenControl` and `role-constants.mjs::applyHiddenControl`.
+
+- **Role context from session**: Frontend reads role from `localStorage.getItem('payshare_role')` and configures sidebar, top bar, and bottom navigation accordingly.
+
+- **Rate limiting**: Applied on auth endpoints (login: 5/15min, forgot: 3/15min, verify: 5/15min) as implemented in `rate-limit.mjs`.
+</ENDOFFILE
+echo "Updated PERMISSIONS.md"
+
+### Implementation Notes (A04)
+
+- **contractor_compensation**: Server-side filtering implemented in `role-constants.mjs::filterContractorCompensation`. Returns `null` for worker roles. Verified in RBAC tests.
+
+- **Individual worker allocations**: Server-side filtering implemented in `role-constants.mjs::filterWorkerAllocations`. Contractor/client see all; worker sees only own allocation. Verified in RBAC tests.
+
+- **Payments made and pending**: Server-side filtering implemented in `role-constants.mjs::filterPayments`. Contractor/client see full detail; worker sees own payments + overall progress. Verified in RBAC tests.
+
+- **Transaction history**: Server-side filtering implemented in `role-constants.mjs::filterTransactionHistory`. Project-level for contractor/client; own transactions only for worker.
+
+- **Individual worker allocations in project members**: Server-side filtering implemented in `role-constants.mjs::filterProjectMembers`. Shows "Full breakdown" for contractor/client; "Own allocation + totals" for worker.
+
+- **Expenses**: Server-side filtering implemented in `role-constants.mjs::filterExpenses`. Contractor: all expenses; Worker: own expenses; Client: all expenses.
+
+- **Route guards**: Implemented in `frontend/index.html` - users without proper role context are redirected to role selection screen.
+
+- **Hidden data**: Absent from responses (not blurred or disabled). Implemented in `hidden-control.mjs::applyHiddenControl` and `role-constants.mjs::applyHiddenControl`.
+
+- **Role context from session**: Frontend reads role from `localStorage.getItem('payshare_role')` and configures sidebar, top bar, and bottom navigation accordingly.
+
+- **Rate limiting**: Applied on auth endpoints (login: 5/15min, forgot: 3/15min, verify: 5/15min) as implemented in `rate-limit.mjs`.
