@@ -1,3 +1,4 @@
+import { addTaskApprovalRoutes } from "./task-approvals.mjs";
 import { addFundingRoutes } from "./funding-api.mjs";
 // Worker privacy is applied to responses on the server.
 import express from "express";
@@ -112,6 +113,7 @@ const paymentList = endpoint(async (req, res) => {
 moneyRouter.get("/projects/:id/payments", paymentList);
 moneyRouter.get("/payments", paymentList);
 addFundingRoutes(moneyRouter, endpoint);
+addTaskApprovalRoutes(moneyRouter, endpoint);
 
 export function moneyErrors(error, req, res, next) {
   if (res.headersSent) return next(error);
