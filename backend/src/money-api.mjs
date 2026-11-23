@@ -114,5 +114,5 @@ moneyRouter.get("/payments", paymentList);
 export function moneyErrors(error, req, res, next) {
   if (res.headersSent) return next(error);
   const status = error.status || 503;
-  res.status(status).json({ error: status >= 500 ? "Project data is temporarily unavailable" : error.message });
+  res.status(status).json({ error: status < 500 || error.code === "PAYMENT_HISTORY_UNAVAILABLE" ? error.message : "Project data is temporarily unavailable" });
 }
