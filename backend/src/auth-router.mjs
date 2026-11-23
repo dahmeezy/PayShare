@@ -1,5 +1,6 @@
 import express from "express";
 import { createUser, getUserByEmail, loginUser, hashPassword, verifyPassword, hasPassword, countUsers, listUsers } from "./users-store.mjs";
+import { authRateLimiter } from "./rate-limit.mjs";
 
 const endpoint = (fn) => (req, res, next) => Promise.resolve().then(() => fn(req, res)).catch(next);
 
@@ -37,8 +38,8 @@ authRouter.post("/register", endpoint(async (req, res) => {
   });
 }));
 
-// POST /auth/login - Login user
-authRouter.post("/login", endpoint(async (req, res) => {
+// POST /auth/login - Login user with rate limiting
+authRouter.post("/login", authRateLimiter('login'), endpoint(async (req, res) => {
   const { email, password } = req.body ?? {};
 
   if (!email || !password) {
@@ -71,8 +72,8 @@ authRouter.get("/session", endpoint(async (req, res) => {
   res.status(401).json({ error: "No active session" });
 }));
 
-// POST /auth/forgot - Request password reset (email or WhatsApp code)
-authRouter.post("/forgot", endpoint(async (req, res) => {
+// POST /auth/forgot - Request password reset (email or WhatsApp code) with rate limiting
+authRouter.post("/forgot", authRateLimiter('forgot'), endpoint(async (req, res) => {
   const { email } = req.body ?? {};
 
   if (!email || !email.includes("@")) {
@@ -91,7 +92,6 @@ authRouter.post("/forgot", endpoint(async (req, res) => {
   const resetCode = String(Math.floor(100000 + Math.random() * 899999)).split('').map(String);
   const codeExpiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
 
-  // Store the code and expiration (in production, use Redis or similar)
   res.json({ 
     success: true, 
     code: resetCode,  // In prod: don't return the code, just trigger delivery
@@ -100,8 +100,8 @@ authRouter.post("/forgot", endpoint(async (req, res) => {
   });
 }));
 
-// POST /auth/verify - Verify 6-digit code
-authRouter.post("/verify", endpoint(async (req, res) => {
+// POST /auth/verify - Verify 6-digit code with rate limiting
+authRouter.post("/verify", authRateLimiter('verify'), endpoint(async (req, res) => {
   const { code } = req.body ?? {};
 
   if (!code || code.length !== 6) {
