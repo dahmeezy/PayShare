@@ -30,7 +30,7 @@ export function budgetBreakdown(project, payouts = {}) {
   const workerPool = totalBudget - expenses - contractorComp;
   const allocated = project.workers.reduce((sum, worker) => sum + toCents(worker.allocation), 0);
   const paid = project.workers.reduce((sum, worker) =>
-    sum + (payouts[worker.id]?.status === "paid" ? toCents(worker.allocation) : 0), 0);
+    sum + (payouts[worker.id]?.status === "paid" ? (payouts[worker.id].amount ?? toCents(worker.allocation)) : 0), 0);
 
   if (workerPool < 0 || allocated > workerPool) {
     throw new Error("Budget exceeded: expenses, compensation and allocations cannot exceed the budget");

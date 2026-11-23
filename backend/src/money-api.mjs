@@ -1,3 +1,6 @@
+import { payoutEligibility } from "./payout-eligibility.mjs";
+import { fundingWallet } from "./funding.mjs";
+import { addIncompleteTaskRoutes } from "./incomplete-task-api.mjs";
 import { addAllocationChangeRoutes } from "./allocation-change-api.mjs";
 import { addTaskApprovalRoutes } from "./task-approvals.mjs";
 import { addFundingRoutes } from "./funding-api.mjs";
@@ -95,6 +98,8 @@ moneyRouter.post("/allocations", endpoint(async (req, res) => {
 const paymentList = endpoint(async (req, res) => {
   const state = await readProjectState();
   const all = currentProject(state).workers;
+  let payer;
+  try { payer = fundingWallet(); } catch (error) { if (error.status !== 503) throw error; }
   res.json({
     payments: all.filter((worker) => own(req, worker)).map((worker) => {
       const p = state.payouts[worker.id];
@@ -104,6 +109,8 @@ const paymentList = endpoint(async (req, res) => {
         transaction: p.tx ?? null,
         explorer_url: p.tx && /^[a-f0-9]{64}$/i.test(p.tx) ? `https://stellar.expert/explorer/testnet/tx/${p.tx}` : null,
         paid_at: p.paidAt ?? null,
+        reasons: p.status === "pending" ? payoutEligibility(state, worker.id, payer).reasons : [],
+        next_action: p.status === "processing" || p.status === "failed" ? "Ask the contractor to reconcile on Stellar" : null,
       };
     }).filter((payment) => (!req.query.worker_id || payment.worker_id === req.query.worker_id) &&
       (!req.query.status || payment.status === req.query.status) &&
@@ -116,6 +123,7 @@ moneyRouter.get("/payments", paymentList);
 addFundingRoutes(moneyRouter, endpoint);
 addTaskApprovalRoutes(moneyRouter, endpoint);
 addAllocationChangeRoutes(moneyRouter, endpoint);
+addIncompleteTaskRoutes(moneyRouter, endpoint);
 
 export function moneyErrors(error, req, res, next) {
   if (res.headersSent) return next(error);

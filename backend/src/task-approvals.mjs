@@ -28,15 +28,15 @@ export function addTaskApprovalRoutes(router, endpoint) {
   // Local project workflow for the H1 handoff. Real task sessions can mount this router after authentication.
   router.post("/tasks/:task/terms", endpoint(async (req, res) => {
     requireRole(req, "contractor");
-    const { requires_client: requiresClient, overall_completion: overallCompletion = false, criteria } = req.body ?? {};
+    const { requires_client: requiresClient, overall_completion: overallCompletion = false, transferable = false, criteria } = req.body ?? {};
     if (typeof requiresClient !== "boolean" || typeof overallCompletion !== "boolean" ||
-        typeof criteria !== "string" || !criteria.trim()) throw projectError("Provide acceptance criteria and review rules");
+        typeof transferable !== "boolean" || typeof criteria !== "string" || !criteria.trim()) throw projectError("Provide acceptance criteria and review rules");
     const task = await updateProjectState((state) => {
       const { worker, task } = projectTask(state, req.params.task, req.auth);
       if (task || state.payouts[worker.id].status !== "pending") throw projectError("Terms already exist for this task", 409);
       const entry = {
         status: "assigned", terms_amount: toCents(worker.allocation), criteria: criteria.trim(),
-        requires_client: requiresClient, overall_completion: overallCompletion, client_confirmed: false, history: [],
+        requires_client: requiresClient, overall_completion: overallCompletion, transferable, client_confirmed: false, history: [],
       };
       if (!entry.terms_amount) throw projectError("Set a worker allocation before assigning terms");
       record(entry, "terms_set");
