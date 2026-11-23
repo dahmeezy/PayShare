@@ -1,0 +1,90 @@
+/* File upload area */
+.upload-area {
+  border: var(--border-width) dashed var(--color-neutral-medium);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--transition-fast) var(--transition-easing),
+    background-color var(--transition-fast) var(--transition-easing);
+  color: var(--color-text-muted);
+}
+
+.upload-area:hover {
+  border-color: var(--color-brand-teal);
+  color: var(--color-brand-deep-navy);
+}
+
+.upload-area--over {
+  border-color: var(--color-brand-teal);
+  background-color: rgba(21, 154, 131, 0.05);
+  color: var(--color-brand-teal);
+}
+
+.upload-area--uploading {
+  border-color: var(--color-brand-teal);
+  background-color: rgba(21, 154, 131, 0.05);
+}
+
+.upload-area--uploading .upload-area-icon {
+  animation: upload-spin 1s linear infinite;
+}
+
+.upload-area--done {
+  border-color: var(--color-status-success);
+  color: var(--color-status-success);
+}
+
+.upload-area--failed {
+  border-color: var(--color-status-failed);
+  color: var(--color-status-failed);
+}
+
+.upload-area__input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.upload-area__icon {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto var(--space-sm);
+  display: block;
+}
+
+.upload-area__title {
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-xxs);
+}
+
+.upload-area__hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+@keyframes upload-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Progress upload */
+.upload-progress {
+  width: 100%;
+  height: var(--progress-bar-height, 0.5rem);
+  background-color: var(--color-neutral-light);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-top: var(--space-sm);
+}
+
+.upload-progress-fill {
+  height: 100%;
+  width: var(--progress-percent, 0%);
+  background-color: var(--color-brand-teal);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-normal) var(--transition-easing);
+}
