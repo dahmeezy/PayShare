@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayShare UI Components Showcase</title>
+  <link rel="stylesheet" href="../ui/index.css">
+</head>
+<body>
+  <div class="max-w-1440 mx-auto p-4">
+    <!-- Showcase page header -->
+    <header class="app-bar mb-8">
+      <div class="app-bar-title">PayShare UI Components</div>
+      <div class="app-bar-actions">
+        <button class="btn btn-sm btn-secondary">Dark mode</button>
+      </div>
+    </header>
+
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-6">Components Showcase</h2>
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <!-- Button -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Button</h3>
+          <button class="btn btn-primary">Primary</button>
+          <button class="btn btn-secondary">Secondary</button>
+        </div>
+
+        <!-- Text Input -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Text Input</h3>
+          <input type="text" class="input" placeholder="Enter text...">
+          <input type="search" class="search-field" placeholder="Search...">
+          <select class="select">
+            <option>Select option</option>
+            <option>Option 1</option>
+            <option>Option 2</option>
+          </select>
+          <label class="checkbox">
+            <input type="checkbox" class="checkbox-input" checked>
+            <span class="checkbox-label">Remember me</span>
+          </label>
+        </div>
+
+        <!-- Avatar -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Avatar</h3>
+          <div class="avatar avatar--initials"><span class="avatar-initials">JS</span></div>
+          <div class="avatar"><img src="placeholder.jpg" alt="User"></div>
+        </div>
+
+        <!-- Status Pill -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Status Pill</h3>
+          <span class="status-pill status-pending">
+            <span class="status-icon"></span>Pending payment
+          </span>
+          <span class="status-pill status-success">
+            <span class="status-icon"></span>Successful
+          </span>
+          <span class="status-pill status-failed">
+            <span class="status-icon"></span>Failed
+          </span>
+        </div>
+
+        <!-- Task Card -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Task Card</h3>
+          <div class="task-card">
+            <div class="task-card-header">
+              <div class="task-card-title">Design system</div>
+              <span class="task-card-status task-card-status--assigned">Assigned</span>
+            </div>
+            <div class="task-card-body">
+              <p class="task-card-description">Create the design system for PayShare</p>
+            </div>
+            <div class="task-card-footer">
+              <span class="task-card-assigned-to">Assigned to: Amara</span>
+              <div class="task-card-actions">
+                <button class="btn btn-sm btn-secondary">View</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Financial Summary -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Financial Summary</h3>
+          <div class="financial-card">
+            <div class="card-header">
+              <div class="title">Project Budget</div>
+            </div>
+            <div class="summary-item">
+              <span class="label">Total Budget</span>
+              <span class="amount">$10,000.00</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Expenses</span>
+              <span class="amount">$2,500.00</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Remaining</span>
+              <span class="amount">$7,500.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Big Number Display -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Big-Number Display</h3>
+          <div class="big-number">$15,000</div>
+          <div class="big-number-with-label">
+            <div class="label">Total funded</div>
+            <div class="big-number">$15,000</div>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Progress Bar</h3>
+          <div class="progress-bar">
+            <div class="progress-bar-fill progress-bar-fill--success" style="width: 70%"></div>
+          </div>
+          <div class="progress-text">70% complete</div>
+        </div>
+
+        <!-- Table -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Table</h3>
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Status</th>
+                <th>Amount</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Design system</td>
+                <td>Assigned</td>
+                <td>$1,500</td>
+                <td><button class="btn btn-sm btn-secondary">View</button></td>
+              </tr>
+              <tr>
+                <td>UI foundation</td>
+                <td>In Progress</td>
+                <td>$2,000</td>
+                <td><button class="btn btn-sm btn-secondary">View</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tabs -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Tabs</h3>
+          <div class="tabs">
+            <div class="tab tab--active">Overview</div>
+            <div class="tab">Details</div>
+            <div class="tab">Activity</div>
+          </div>
+          <div class="tab-panel">
+            <div class="tab-content tab-content--active">Overview content</div>
+            <div class="tab-content">Details content</div>
+            <div class="tab-content">Activity content</div>
+          </div>
+        </div>
+
+        <!-- Modal -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Modal</h3>
+          <button class="btn btn-sm btn-info" data-modal-open>Open modal</button>
+          <div class="modal" data-modal>
+            <div class="modal-content">
+              <div class="modal-header">
+                <span class="modal-title">Confirmation</span>
+                <button class="modal-close" data-modal-close></button>
+              </div>
+              <div class="modal-body">
+                <p>Are you sure you want to proceed?</p>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-secondary" data-modal-cancel>Cancel</button>
+                <button class="btn btn-primary" data-modal-confirm>Confirm</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alert -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Alert Messages</h3>
+          <div class="alert alert--success">
+            <span class="alert-icon"></span>
+            <span class="alert-message">Changes saved successfully</span>
+          </div>
+          <div class="alert alert--error">
+            <span class="alert-icon"></span>
+            <span class="alert-message">An error occurred</span>
+          </div>
+          <div class="alert alert--info">
+            <span class="alert-icon"></span>
+            <span class="alert-message">Changes not saved</span>
+          </div>
+        </div>
+
+        <!-- Notification -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Notification</h3>
+          <div class="notification-item">
+            <span class="notification-dot notification-dot--unread"></span>
+            <div class="notification-content">
+              <span class="notification-title">Payment received</span>
+              <span class="notification-message">$500.00 received for task completion</span>
+            </div>
+            <span class="notification-time">2m</span>
+          </div>
+          <div class="notification-item notification-item--read">
+            <span class="notification-dot notification-dot--read"></span>
+            <div class="notification-content">
+              <span class="notification-title">Task updated</span>
+              <span class="notification-message">Status changed to approved</span>
+            </div>
+            <span class="notification-time">1h</span>
+          </div>
+        </div>
+
+        <!-- File Upload -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">File Upload</h3>
+          <div class="upload-area" id="uploadArea">
+            <div class="upload-area__icon"></div>
+            <div class="upload-area__title">Drag & drop files</div>
+            <div class="upload-area__hint">or browse (Max 10MB)</div>
+            <input type="file" class="upload-area__input">
+          </div>
+        </div>
+
+        <!-- Voice Note -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Voice Note</h3>
+          <div class="voice-player">
+            <span class="voice-player__duration">1:30</span>
+            <button class="voice-player__btn voice-player__btn--idle" aria-label="Play voice note"></button>
+            <button class="voice-player__btn voice-player__btn--idle" aria-label="Record voice note"></button>
+          </div>
+          <div class="record-control" aria-label="Record voice note"></div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Empty State</h3>
+          <div class="empty-state">
+            <div class="empty-state-icon"></div>
+            <div class="empty-state-title">No tasks found</div>
+            <div class="empty-state-description">Tasks appear here when you create them</div>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Loading State</h3>
+          <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <span class="loading-text">Loading...</span>
+          </div>
+        </div>
+
+        <!-- Skeleton -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Skeleton Loading</h3>
+          <div class="skeleton skeleton-text-short"></div>
+          <div class="skeleton skeleton-text skeleton-text-short"></div>
+          <div class="skeleton skeleton-row">
+            <div class="skeleton-text"></div>
+            <div class="skeleton-image"></div>
+          </div>
+        </div>
+
+        <!-- Navigation - Sidebar -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Sidebar (Desktop)</h3>
+          <div class="sidebar">
+            <div class="sidebar-logo">PayShare</div>
+            <nav class="sidebar-nav">
+              <a href="#" class="sidebar-nav-link sidebar-nav-link--active">
+                <svg class="sidebar-nav-icon"><use href="#icon-home"></use></svg>
+                Home
+              </a>
+              <a href="#" class="sidebar-nav-link">
+                <svg class="sidebar-nav-icon"><use href="#icon-file"></use></svg>
+                Projects
+              </a>
+              <a href="#" class="sidebar-nav-link">
+                <svg class="sidebar-nav-icon"><use href="#icon-users"></use></svg>
+                Team
+              </a>
+              <a href="#" class="sidebar-nav-link">
+                <svg class="sidebar-nav-icon"><use href="#icon-settings"></use></svg>
+                Settings
+              </a>
+            </nav>
+          </div>
+        </div>
+
+        <!-- Bottom Nav -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Bottom Navigation (Mobile)</h3>
+          <nav class="bottom-nav">
+            <div class="bottom-nav-item bottom-nav-item--active">
+              <svg class="bottom-nav-icon"><use href="#icon-home"></use></svg>
+              <span>Home</span>
+            </div>
+            <div class="bottom-nav-item">
+              <svg class="bottom-nav-icon"><use href="#icon-file"></use></svg>
+              <span>Projects</span>
+            </div>
+            <div class="bottom-nav-item">
+              <svg class="bottom-nav-icon"><use href="#icon-users"></use></svg>
+              <span>Team</span>
+            </div>
+            <div class="bottom-nav-item">
+              <svg class="bottom-nav-icon"><use href="#icon-settings"></use></svg>
+              <span>Settings</span>
+            </div>
+          </nav>
+        </div>
+
+        <!-- App Bar -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">App Bar</h3>
+          <div class="app-bar">
+            <div class="app-bar-title">PayShare</div>
+            <div class="app-bar-actions">
+              <button class="btn btn-sm btn-secondary">Menu</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Worker Profile -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Worker Profile Card</h3>
+          <div class="worker-profile-card">
+            <div class="worker-avatar"><span class="worker-initials">JS</span></div>
+            <div class="worker-name">John Smith</div>
+            <div class="worker-role">Worker</div>
+            <div class="worker-allocation">$2,500 <span class="currency">USDC</span></div>
+            <div class="worker-status-pill status-success" style="font-size: var(--font-size-xs); padding: var(--space-xxs) var(--space-sm);">
+              <span class="status-icon"></span>Active
+            </div>
+            <div class="worker-info">
+              <div class="info-row">
+                <span class="info-label">Total earned</span>
+                <span class="info-value">$15,000</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Tasks completed</span>
+                <span class="info-value">12</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Transaction Row -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Transaction Row</h3>
+          <div class="transaction-row">
+            <span class="transaction-icon" style="background-color: var(--color-brand-teal);"></span>
+            <div class="transaction-details">
+              <span class="transaction-title">Payment to worker</span>
+              <span class="transaction-meta">2024-01-15</span>
+            </div>
+            <span class="transaction-amount transaction-amount--positive">+$500.00</span>
+            <span class="status-badge status-success">Successful</span>
+          </div>
+        </div>
+
+        <!-- Data Model Status Labels -->
+        <div class="card">
+          <h3 class="text-semibold mb-3">Task Status Labels</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: var(--space-xxs);">
+            <span class="task-status-assigned">Assigned</span>
+            <span class="task-status-accepted">Accepted</span>
+            <span class="task-status-in-progress">In Progress</span>
+            <span class="task-status-submitted">Submitted</span>
+            <span class="task-status-approved">Approved</span>
+            <span class="task-status-rejected">Rejected</span>
+            <span class="task-status-cancelled">Cancelled</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Initialize components
+    document.addEventListener('DOMContentLoaded', () => {
+      // Modal
+      const modals = document.querySelectorAll('[data-modal]');
+      modals.forEach(modal => {
+        const openBtn = modal.querySelector('[data-modal-open]');
+        const closeBtn = modal.querySelector('[data-modal-close]');
+        const cancelBtn = modal.querySelector('[data-modal-cancel]');
+
+        const openModal = () => {
+          modal.classList.add('--open');
+        };
+
+        const closeModal = () => {
+          modal.classList.remove('--open');
+        };
+
+        if (openBtn) openBtn.addEventListener('click', openModal);
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+        // Close on overlay click
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) closeModal();
+        });
+      });
+
+      // Upload area
+      const uploadArea = document.getElementById('uploadArea');
+      if (uploadArea) {
+        let isOver = false;
+        
+        uploadArea.addEventListener('mouseenter', () => {
+          isOver = true;
+          uploadArea.classList.add('--over');
+        });
+
+        uploadArea.addEventListener('mouseleave', () => {
+          isOver = false;
+          uploadArea.classList.remove('--over');
+        });
+
+        uploadArea.addEventListener('click', () => {
+          uploadArea.querySelector('.upload-area__input').click();
+        });
+      }
+    });
+  </script>
+</body>
+</html>
