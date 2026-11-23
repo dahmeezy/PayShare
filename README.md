@@ -35,6 +35,12 @@ The current development work includes:
 
 Some of these features are still in separate pull requests and are not yet part of the main branch.
 
+## Figma frontend preview
+
+From the repository root, run `python3 -m http.server 8080` and open [the frontend preview](http://127.0.0.1:8080/frontend/prototype.html). No packages or backend setup are needed. Use **Explore screens** to switch roles, find a Figma frame, or view dark-mode and mobile variants.
+
+The frontend uses sample data. It does not sign in, send WhatsApp messages, or submit payments. See the [screen checklist](frontend/SCREENS.md) for routes and visual checks.
+
 ## Working prototype
 
 The prototype currently runs locally. We have not added a public demo link yet.
