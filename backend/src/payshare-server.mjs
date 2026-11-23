@@ -59,6 +59,8 @@ const facilitatorClient = new HTTPFacilitatorClient({
 });
 
 const app = express();
+// The reviewed, history-checked settlement route is enabled in the settlement PR.
+app.use("/paid", (_req, res) => res.sendStatus(503));
 
 // Plain-English log: 402 = "asked to pay", 200 = "paid and unlocked"
 app.use("/paid", (req, res, next) => {
