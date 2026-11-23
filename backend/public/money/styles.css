@@ -1,0 +1,23 @@
+:root { color: #142b45; background: #f2f6f7; font: 16px/1.5 Inter, system-ui, sans-serif; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+header { display: flex; gap: 1.25rem; align-items: center; background: #142b45; color: white; padding: .9rem max(1rem, calc((100vw - 68rem) / 2)); }
+header span { color: #c8efea; }
+main { max-width: 70rem; margin: auto; padding: 1rem; }
+h1, h2, h3 { line-height: 1.2; margin: 0 0 1rem; }
+h1 { margin-top: 1rem; }
+form, article { padding: 1rem; border: 1px solid #c9d6de; border-radius: .6rem; background: white; margin-bottom: 1rem; }
+form { display: flex; flex-wrap: wrap; gap: .8rem; align-items: end; }
+form h3 { flex-basis: 100%; margin: 0; }
+label { display: grid; flex: 1 1 11rem; min-width: 0; gap: .25rem; }
+input, select { border: 1px solid #899ba8; border-radius: .3rem; background: white; padding: .55rem; color: inherit; font: inherit; width: 100%; }
+button { border: 0; border-radius: .3rem; padding: .6rem .85rem; color: white; background: #097564; font: inherit; cursor: pointer; }
+button:hover { background: #075a4e; }
+button:focus-visible, a:focus-visible { outline: 3px solid #159a83; outline-offset: 2px; }
+nav { display: flex; flex-wrap: wrap; gap: .45rem; margin-bottom: 1rem; }
+nav button { color: #142b45; background: #dce8ee; }
+nav button[aria-current], nav button:hover { color: white; background: #142b45; }
+section article p { margin: .45rem 0; overflow-wrap: anywhere; }
+a { color: #076654; }
+#notice:empty { display: none; }

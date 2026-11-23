@@ -33,7 +33,7 @@ export function addAllocationChangeRoutes(router, endpoint) {
       catch (error) { throw projectError(error.message); }
       const workerId = proposal.worker_id;
       if (proposal.proposed_amount === proposal.current_amount) throw projectError("Choose a different amount");
-      if (state.payouts[workerId].status !== "pending" ||
+      if (state.tasks[workerId]?.incomplete_report_open || state.payouts[workerId].status !== "pending" ||
           state.changes.some((change) => change.worker_id === workerId && change.status === "pending")) {
         throw projectError("A payout or another proposal is already active", 409);
       }
@@ -66,7 +66,7 @@ export function addAllocationChangeRoutes(router, endpoint) {
         if (role === "client") entry.client_approved = true;
         if (canApplyAllocationChange(entry)) {
           const worker = currentProject(state).workers.find(({ id }) => id === entry.worker_id);
-          if (state.payouts[worker.id].status !== "pending" || toCents(worker.allocation) !== entry.current_amount ||
+          if (state.payouts[worker.id].status !== "pending" || toCents(worker.allocation) !== entry.current_amount || state.tasks[worker.id]?.incomplete_report_open ||
               ["cancelled", "reassigned"].includes(state.tasks[worker.id]?.status)) {
             throw projectError("The original allocation can no longer be changed", 409);
           }

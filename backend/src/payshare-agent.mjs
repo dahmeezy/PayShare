@@ -91,6 +91,17 @@ async function main([command, id, suppliedHash]) {
   }
   if (!PROJECT.workers.some((worker) => worker.id === id)) throw new Error("Provide a valid project task ID");
   if (command === "pay") return pay(id);
+  if (command === "release") {
+    await updateProjectState((state) => {
+      const payment = state.payouts[id];
+      if (payment.status !== "processing" || payment.submittedAt || !payment.attempt) {
+        throw new Error("Only an unsubmitted reservation can be released");
+      }
+      state.payouts[id] = { id: payment.id, status: "pending" };
+    });
+    console.log("Released the unsubmitted testnet reservation");
+    return;
+  }
   if (command === "reconcile") {
     const payment = (await readProjectState()).payouts[id];
     const hash = payment.candidateTx ?? suppliedHash;
@@ -99,7 +110,7 @@ async function main([command, id, suppliedHash]) {
     console.log(`Verified payment ${result.tx}`);
     return;
   }
-  throw new Error("Use status, pay <task-id>, or reconcile <task-id> [transaction-hash]");
+  throw new Error("Use status, pay <task-id>, release <task-id>, or reconcile <task-id> [transaction-hash]");
 }
 
 try {

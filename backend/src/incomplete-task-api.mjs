@@ -57,6 +57,7 @@ export function addIncompleteTaskRoutes(router, endpoint) {
         task.deadline = new Date(date).toISOString();
         resolution.deadline = task.deadline;
         task.status = "accepted";
+        delete task.partial_amount;
       } else if (action === "reassign") {
         if (!task.transferable || newWorker === worker.id || !currentProject(state).workers.some(({ id }) => id === newWorker)) {
           throw projectError("Only transferable work can be reassigned to another project worker");
