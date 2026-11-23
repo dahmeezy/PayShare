@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { StrKey } from "@stellar/stellar-sdk";
 import { budgetBreakdown, toCents } from "./budget.mjs";
 import { canPayForTask } from "./incomplete-task.mjs";
-import { currentProject, projectError, updateProjectState } from "./project-store.mjs";
+import { assertPayoutHistory, currentProject, projectError, updateProjectState } from "./project-store.mjs";
 
 const cents = (worker, payment) => payment.amount ?? toCents(worker.allocation);
 const reservedStatuses = ["paid", "processing", "failed"];
@@ -16,6 +16,7 @@ export function payoutEligibility(state, id, payer, walletBalance) {
   const allocation = toCents(worker.allocation);
   const amount = task?.partial_amount ?? allocation;
   const reasons = [];
+  if (state.mode === "preview") reasons.push("This preview project cannot submit payouts.");
   if (payment?.status !== "pending") reasons.push("Payout already attempted. Check its status before retrying.");
   if (!task || task.terms_amount !== allocation || !task.history?.some((event) => event.action === "worker_accepted")) {
     reasons.push("The worker must accept the current agreement.");
@@ -44,6 +45,7 @@ export function payoutEligibility(state, id, payer, walletBalance) {
 
 export function reservePayout(id, payer, walletBalance) {
   return updateProjectState((state) => {
+    assertPayoutHistory(state, payer);
     const result = payoutEligibility(state, id, payer, walletBalance);
     if (!result.eligible) throw projectError(result.reasons.join(" "), 409);
     const payment = {

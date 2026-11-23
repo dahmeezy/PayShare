@@ -6,7 +6,7 @@ import { config } from "./config.mjs";
 import { fundingWallet, validHash } from "./funding.mjs";
 import { requireTestnet, validateSettlement } from "./payout-validation.mjs";
 import { PROJECT } from "./project.mjs";
-import { readProjectState, updateProjectState } from "./project-store.mjs";
+import { assertPayoutHistory, readProjectState, updateProjectState } from "./project-store.mjs";
 import { finishPayout, quoteMatches, TESTNET_RPC } from "./stellar-settlement.mjs";
 
 function localUrl() {
@@ -22,6 +22,7 @@ function localUrl() {
 async function pay(id) {
   if (process.env.PAYSHARE_ENABLE_TESTNET_PAYOUTS !== "true") throw new Error("Enable testnet payouts first");
   const payer = fundingWallet();
+  assertPayoutHistory(await readProjectState(), payer);
   if (Keypair.fromSecret(config.agentSecret).publicKey() !== payer) throw new Error("Signer does not match the funding wallet");
   const base = localUrl();
   const authorization = `Bearer ${process.env.PAYSHARE_AGENT_TOKEN ?? ""}`;
