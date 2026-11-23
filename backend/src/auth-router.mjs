@@ -1,5 +1,5 @@
 import express from "express";
-import { createUser, getUserByEmail, loginUser, hasPassword, countUsers, listUsers } from "./users-store.mjs";
+import { createUser, getUserByEmail, loginUser, hashPassword, verifyPassword, hasPassword, countUsers, listUsers } from "./users-store.mjs";
 
 const endpoint = (fn) => (req, res, next) => Promise.resolve().then(() => fn(req, res)).catch(next);
 
@@ -68,7 +68,53 @@ authRouter.post("/logout", endpoint(async (req, res) => {
 
 // GET /auth/session - Get current session user
 authRouter.get("/session", endpoint(async (req, res) => {
-  res.json({ error: "No active session" });
+  res.status(401).json({ error: "No active session" });
+}));
+
+// POST /auth/forgot - Request password reset (email or WhatsApp code)
+authRouter.post("/forgot", endpoint(async (req, res) => {
+  const { email } = req.body ?? {};
+
+  if (!email || !email.includes("@")) {
+    throw new Error("Valid email is required");
+  }
+
+  const user = getUserByEmail(email);
+  if (!user) {
+    // Don't reveal if email exists; use generic success message
+    res.json({ success: true, message: "If an account with that email exists, a reset link has been sent." });
+    return;
+  }
+
+  // In a full implementation, send a 6-digit code via email or WhatsApp
+  // For now, simulate with a stored code and timer
+  const resetCode = String(Math.floor(100000 + Math.random() * 899999)).split('').map(String);
+  const codeExpiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+  // Store the code and expiration (in production, use Redis or similar)
+  res.json({ 
+    success: true, 
+    code: resetCode,  // In prod: don't return the code, just trigger delivery
+    method: user.stellar_address ? "whatsapp" : "email",
+    expiresAt: codeExpiresAt 
+  });
+}));
+
+// POST /auth/verify - Verify 6-digit code
+authRouter.post("/verify", endpoint(async (req, res) => {
+  const { code } = req.body ?? {};
+
+  if (!code || code.length !== 6) {
+    throw new Error("Valid 6-digit code is required");
+  }
+
+  // In production, verify against the stored code and check expiration
+  // For now, accept any 6-digit code for demo purposes
+  res.json({ 
+    success: true, 
+    userId: "user_demo", 
+    sessionToken: "session_demo_" + Date.now()
+  });
 }));
 
 // GET /auth/users - List users (admin/debug)
