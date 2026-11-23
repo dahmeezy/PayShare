@@ -38,5 +38,8 @@ test("follows authored project, worker and review paths", () => {
   assert.equal(targetFor("w03", "Button", "Accept task & payment", prototype), "w04");
   assert.equal(targetFor("c24", "Button", "Authorize 150 USDC", prototype), "c25");
   assert.equal(targetFor("wa01", "CTA", "View invitation", prototype), "a06");
+  assert.equal(targetFor("wa04", "CTA", "Submit securely", prototype), "w05");
+  assert.equal(targetFor("wa09", "CTA", "Fund securely", prototype), "d09");
+  assert.equal(targetFor("wa10", "CTA", "Fix securely", prototype), "w12");
   assert.equal(targetFor("a03", "Button", "Log in", prototype), "@home");
 });

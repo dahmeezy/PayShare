@@ -104,12 +104,12 @@ export function targetFor(route, layer, label, authored) {
   if (authored[base]?.[layer + ":" + text]) return authored[base][layer + ":" + text];
   if (/^(Sidebar item|Bottom nav item)$/i.test(layer)) return nav[roleFor(base)]?.[key];
   if (layer === "Logo") return nav[roleFor(base)]?.overview || "a01";
-  if (/^WA\d/i.test(route) || base === "whatsapp") {
-    if (/open|review|view|accept|continue/i.test(text)) {
-      return { wa01:"a06", wa02:"w03", wa03:"mw03", wa04:"w05", wa05:"w11", wa06:"w09",
-        wa07:"w10", wa08:"d06", wa09:"d07", wa10:"w12" }[base];
-    }
+  if (/^wa\d/.test(base) && layer === "CTA") {
+    if (base === "wa09" && /fund/i.test(text)) return "d09";
+    return { wa01:"a06", wa02:"w03", wa04:"w05", wa05:"w11", wa06:"w09",
+      wa08:"d06", wa09:"d07", wa10:"w12" }[base];
   }
+  if (base === "wa03" && layer === "Quick reply" && /more time/i.test(text)) return "w10";
   if (layer === "Chip" && ["mc02", "md02"].includes(base)) {
     return (base === "mc02" ? { overview:"mc02", tasks:"c18", budget:"mc03", members:"c07", activity:"c08" }
       : { overview:"md02", finances:"md03", allocations:"md04", deliverables:"md05" })[text];
