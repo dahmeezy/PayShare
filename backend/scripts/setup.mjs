@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import { parse } from "dotenv";
 import { Keypair, Horizon, rpc, TransactionBuilder, Operation, Asset, BASE_FEE, StrKey } from "@stellar/stellar-sdk";
 
+const newProject = process.argv.slice(2).includes("--new-project");
 const ENV_FILE = ".env";
 const TEMPLATE = ".env.example";
 const short = (g) => `${g.slice(0, 6)}…${g.slice(-4)}`;
@@ -25,14 +26,17 @@ const saveEnv = (text) => fs.writeFile(ENV_FILE, text, { mode: 0o600 }); // owne
 
 // 1. Bring .env up to date with every setting in .env.example (empty values only).
 const templateText = await fs.readFile(TEMPLATE, "utf8");
-let text = await fs.readFile(ENV_FILE, "utf8").catch(() => templateText);
+let text = await fs.readFile(ENV_FILE, "utf8").catch((error) => {
+  if (error.code === "ENOENT") return templateText;
+  throw error;
+});
 const env = parse(text);
 for (const [key, value] of Object.entries(parse(templateText))) {
   if (value) text = setIfEmpty(text, env, key, value);
 }
 
 // Friendbot only exists on testnet.
-if (env.STELLAR_NETWORK !== "stellar:testnet") {
+if (env.STELLAR_NETWORK !== "stellar:testnet" || env.STELLAR_NETWORK_PASSPHRASE !== "Test SDF Network ; September 2015") {
   console.error("This setup script is testnet-only. Set STELLAR_NETWORK=stellar:testnet in .env.");
   process.exit(1);
 }
@@ -49,12 +53,21 @@ if (!StrKey.isValidEd25519PublicKey(env.STELLAR_RECIPIENT)) {
   console.error("STELLAR_RECIPIENT in .env is not a valid public key (G...). Fix or clear it, then re-run.");
   process.exit(1);
 }
+if (newProject && (env.STELLAR_SECRET_KEY || process.env.STELLAR_SECRET_KEY ||
+    env.PAYSHARE_PAYER_WALLET || process.env.PAYSHARE_PAYER_WALLET)) {
+  throw new Error("New projects require a fresh wallet. Restore and reconcile history for an existing wallet.");
+}
 if (!env.STELLAR_SECRET_KEY) text = setIfEmpty(text, env, "STELLAR_SECRET_KEY", Keypair.random().secret());
 let agentKp;
 try { agentKp = Keypair.fromSecret(env.STELLAR_SECRET_KEY); }
 catch {
   console.error("STELLAR_SECRET_KEY in .env is not a valid secret key (S...). Fix or clear it, then re-run.");
   process.exit(1);
+}
+if (newProject) {
+  const { createProjectState } = await import("../src/project-store.mjs");
+  await createProjectState("testnet", agentKp.publicKey(),
+    process.env.PAYSHARE_STATE_FILE || env.PAYSHARE_STATE_FILE || "payshare-state.json");
 }
 await saveEnv(text);
 
