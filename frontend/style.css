@@ -676,3 +676,38 @@ body {
   font-size: var(--font-size-xs); 
   color: var(--color-text-muted); 
 }
+/* Responsive improvements for auth screens */
+@media (max-width: 1440px) {
+  .max-w-1440 { max-width: 100%; padding: 0 var(--space-4); }
+}
+
+@media (max-width: 1024px) {
+  .grid-lg\:grid-cols-5, .lg\:col-span-5, .lg\:col-span-7 {
+    grid-template-columns: 1fr;
+  }
+  
+  .p-8 { padding: var(--space-4); }
+  .p-6 { padding: var(--space-4); }
+  
+  .text-2xl { font-size: 1.5rem; }
+}
+
+@media (max-width: 390px) {
+  .code-box { width: 44px; height: 44px; font-size: 1.2rem; }
+  
+  .status-pill { padding: var(--space-xxs); font-size: var(--font-size-xxs); }
+  
+  .btn-sm { padding: var(--space-xxs) var(--space-sm); }
+  .btn-lg { padding: var(--space-sm) var(--space-md); }
+}
+
+@media (max-width: 360px) {
+  .code-box { width: 40px; height: 40px; font-size: 1rem; }
+  
+  .input { padding: var(--space-xs) var(--space-sm); }
+  .label { font-size: var(--font-size-xs); }
+  
+  .footer .whatsapp-footer { font-size: var(--font-size-xs); }
+  
+  .step-number { width: 32px; height: 32px; font-size: 0.75rem; }
+}
