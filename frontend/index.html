@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayShare - Fair, on-time pay for everyone on the project</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="import" href="../ui/icons/icons.svg">
+</head>
+<body>
+  <div class="max-w-1440 mx-auto">
+    <!-- Top navigation -->
+    <header class="app-bar mb-8">
+      <div class="app-bar-title">PayShare</div>
+      <div class="app-bar-actions">
+        <button class="btn btn-sm btn-secondary">Log in</button>
+        <button class="btn btn-sm btn-primary">Sign up</button>
+      </div>
+    </header>
+
+    <!-- Landing hero section -->
+    <section class="grid md:grid-cols-2 gap-8 mb-8">
+      <!-- Hero left panel -->
+      <div>
+        <!-- Status pill -->
+        <span class="status-pill status-pending">
+          <span class="status-icon"></span>Pending payment
+        </span>
+
+        <h1 class="text-2xl font-bold mb-4">
+          Fair, on-time pay for everyone on the project.
+        </h1>
+
+        <p class="text-text-secondary mb-6">
+          PayShare records who is owed what, tracks the work, and pays each person
+          automatically once the agreed approvals are in. No chasing, no guessing.
+        </p>
+
+        <div class="flex gap-3">
+          <button class="btn btn-primary">Get Started</button>
+          <button class="btn btn-secondary">Watch Demo</button>
+        </div>
+      </div>
+
+      <!-- Sample cards right panel -->
+      <div>
+        <h3 class="text-semibold mb-4">Sample Projects</h3>
+
+        <div class="space-y-3">
+          <article class="sample-card">
+            <div class="card-title">Lagos Wedding Decoration</div>
+            <p class="card-meta">Amara Okafor, Sew wedding outfits, 150 USDC</p>
+          </article>
+
+          <article class="sample-card">
+            <div class="card-title">Event Graphics</div>
+            <p class="card-meta">Chidi Eze, Event graphics, 100 USDC</p>
+          </article>
+
+          <article class="sample-card">
+            <div class="card-title">Arrange flowers</div>
+            <p class="card-meta">Ngozi Bello, Arrange flowers, 180 USDC</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Role cards section -->
+    <section class="mb-8">
+      <h2 class="text-semibold mb-4">For each role</h2>
+
+      <div class="grid-cols-3 gap-4">
+        <!-- Contractor card -->
+        <article class="role-card">
+          <div class="role-icon" style="background-color: var(--color-brand-deep-navy);">C</div>
+          <h4>For contractors</h4>
+          <p>Set the budget, agree each person's share and let the agent pay approved work.</p>
+        </article>
+
+        <!-- Worker card -->
+        <article class="role-card" style="background-color: var(--color-brand-teal);">
+          <div class="role-icon" style="color: var(--color-neutral-white);">W</div>
+          <h4>For workers</h4>
+          <p>See your task and agreed pay before you start, and get paid when work is approved.</p>
+        </article>
+
+        <!-- Client card -->
+        <article class="role-card">
+          <div class="role-icon" style="background-color: #8B5CF6;">Cl</div>
+          <h4>For clients</h4>
+          <p>Fund once and see exactly where every USDC goes.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- How it works in 4 steps -->
+    <section class="mb-8">
+      <h2 class="text-semibold mb-6">How it works in 4 steps</h2>
+
+      <div class="grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div>
+            <h4>Client funds the budget</h4>
+            <p>Held for the project</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">2</div>
+          <div>
+            <h4>Contractor agrees shares</h4>
+            <p>Each worker accepts their task and pay</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">3</div>
+          <div>
+            <h4>Work is approved</h4>
+            <p>By the contractor, and the client where agreed</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">4</div>
+          <div>
+            <h4>Agent pays automatically</h4>
+            <p>With a receipt for everyone</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="whatsapp-footer">
+        Works with WhatsApp - English, Yoruba, Hausa, Igbo, Pidgin
+      </div>
+      <div>
+        © 2026 PayShare - USDC on Stellar
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
