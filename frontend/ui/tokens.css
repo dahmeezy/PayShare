@@ -19,6 +19,20 @@
   --color-status-failed: #EF4444;
   --color-status-cancelled: #6B7280;
 
+  /* Status color alpha variants (for overlays) */
+  --color-status-awaiting-alpha-01: rgba(107, 114, 128, 0.1);
+  --color-status-awaiting-alpha-02: rgba(107, 114, 128, 0.05);
+  --color-status-pending-alpha-01: rgba(139, 92, 246, 0.1);
+  --color-status-pending-alpha-02: rgba(139, 92, 246, 0.05);
+  --color-status-processing-alpha-01: rgba(59, 130, 246, 0.1);
+  --color-status-processing-alpha-02: rgba(59, 130, 246, 0.05);
+  --color-status-success-alpha-01: rgba(16, 185, 129, 0.1);
+  --color-status-success-alpha-02: rgba(16, 185, 129, 0.05);
+  --color-status-failed-alpha-01: rgba(239, 68, 68, 0.1);
+  --color-status-failed-alpha-02: rgba(239, 68, 68, 0.05);
+  --color-status-cancelled-alpha-01: rgba(107, 114, 128, 0.1);
+  --color-status-cancelled-alpha-02: rgba(107, 114, 128, 0.05);
+
   /* Input/Field colors */
   --color-input-bg: #FFFFFF;
   --color-input-border: #D1D5DB;
@@ -116,7 +130,10 @@
   /* Focus styles */
   --focus-outline-offset: 2px;
 
-  /* Button hover states */
+  /* Modal overlay */
+  --modal-overlay-bg: rgba(0, 0, 0, 0.5);
+
+/* Button hover states */
   --color-brand-deep-navy-hover: #173a5e;
   --color-status-failed-hover: #ef4444;
   --color-brand-teal-hover: #2563eb;

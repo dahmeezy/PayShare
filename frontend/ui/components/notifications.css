@@ -115,21 +115,21 @@
 
 /* Notification type badges */
 .notification-type-task_update {
-  background-color: rgba(59, 130, 246, 0.1);
+  background-color: var(--color-status-processing-alpha-01);
   color: var(--color-status-processing);
 }
 
 .notification-type-payment {
-  background-color: rgba(16, 185, 129, 0.1);
+  background-color: var(--color-status-success-alpha-01);
   color: var(--color-status-success);
 }
 
 .notification-type-invitation {
-  background-color: rgba(239, 68, 68, 0.1);
+  background-color: var(--color-status-failed-alpha-01);
   color: var(--color-status-failed);
 }
 
 .notification-type-system {
-  background-color: rgba(107, 114, 128, 0.1);
+  background-color: var(--color-status-awaiting-alpha-01);
   color: var(--color-text-secondary);
 }

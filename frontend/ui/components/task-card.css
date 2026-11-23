@@ -39,42 +39,42 @@
 
 .task-card .task-card-status--accepted {
   color: var(--color-status-success);
-  background-color: rgba(16, 185, 129, 0.15);
+  background-color: var(--color-status-success-alpha-02);
   padding: var(--space-xxs) var(--space-sm);
   border-radius: var(--radius-full);
 }
 
 .task-card .task-card-status--in-progress {
   color: var(--color-status-processing);
-  background-color: rgba(59, 130, 246, 0.15);
+  background-color: var(--color-status-processing-alpha-02);
   padding: var(--space-xxs) var(--space-sm);
   border-radius: var(--radius-full);
 }
 
 .task-card .task-card-status--submitted {
   color: var(--color-status-failed);
-  background-color: rgba(239, 68, 68, 0.15);
+  background-color: var(--color-status-failed-alpha-02);
   padding: var(--space-xxs) var(--space-sm);
   border-radius: var(--radius-full);
 }
 
 .task-card .task-card-status--approved {
   color: var(--color-status-success);
-  background-color: rgba(16, 185, 129, 0.15);
+  background-color: var(--color-status-success-alpha-02);
   padding: var(--space-xxs) var(--space-sm);
   border-radius: var(--radius-full);
 }
 
 .task-card .task-card-status--rejected {
   color: var(--color-status-failed);
-  background-color: rgba(239, 68, 68, 0.15);
+  background-color: var(--color-status-failed-alpha-02);
   padding: var(--space-xxs) var(--space-sm);
   border-radius: var(--radius-full);
 }
 
 .task-card .task-card-status--cancelled {
   color: var(--color-status-cancelled);
-  background-color: rgba(107, 114, 128, 0.15);
+  background-color: var(--color-status-cancelled-alpha-02);
   padding: var(--space-xxs) var(--space-sm);
   border-radius: var(--radius-full);
 }
