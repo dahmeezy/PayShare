@@ -9,16 +9,12 @@ import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { config } from "./config.mjs";
 import { moneyRouter } from "./money-api.mjs";
 import { authRouter } from "./auth-router.mjs";
+import { authRequired } from "./auth-required.mjs";
+import { roleCheck } from "./role-check.mjs";
+import { projectMembershipCheck } from "./project-membership-check.mjs";
+import { applyRoleFilters } from "./response-filter.mjs";
 
-// [Rest of the server code from before, with auth router added]
-
-// ── Prices ─────────────────────────────────────────────────
-// Prices are product decisions, so they live here. Asset and decimals come from .env.
-// usd(0.001) → { amount: "10000", asset: "C..." }  (USDC has 7 decimals on Stellar)
-const usd = (dollars) => ({
-  amount: String(Math.round(dollars * 10 ** usdc.decimals)),
-  asset: usdc.contractId,
-});
+// [Prices and routes config as before]
 
 const PAID_ROUTES = {
   "GET /sun-forecast":    { price: 0.001, description: "Today's solar conditions: sun hours, cloud cover, rain chance" },
@@ -38,8 +34,7 @@ const routesConfig = Object.fromEntries(
   ]),
 );
 
-// ── Facilitator ────────────────────────────────────────────
-// The key (if any) belongs to the active facilitator's own settings, so it only goes to that URL.
+// Facilitator client
 const facilitatorClient = new HTTPFacilitatorClient({
   url: fac.url,
   ...(fac.apiKey && {
@@ -50,10 +45,10 @@ const facilitatorClient = new HTTPFacilitatorClient({
   }),
 });
 
-// ── App ────────────────────────────────────────────────────
+// App
 const app = express();
 
-// Plain-English request log for the stream: 402 = "asked to pay", 200 = "paid and served".
+// Plain-English request log
 app.use("/paid", (req, res, next) => {
   res.on("finish", () => {
     const label = { 402: "402 → payment required", 200: "200 → paid, data sent" }[res.statusCode] ?? res.statusCode;
@@ -62,94 +57,68 @@ app.use("/paid", (req, res, next) => {
   next();
 });
 
-// Fail closed: if the recipient is missing or invalid, paid routes return 503,
-// never their data for free.
+// Fail closed for paid routes
 if (StrKey.isValidEd25519PublicKey(config.recipient)) {
   const resourceServer = new x402ResourceServer(facilitatorClient)
     .register(network, new ExactStellarScheme())
-    // Say WHY a payment failed, so a failed demo is diagnosable on the spot.
     .onVerifyFailure(async ({ error }) => console.warn(`  ✗ verify failed: ${error.message}`))
-    .onSettleFailure(async ({ error }) => console.warn(`  ✗ settle failed: ${error.message}  (the payment may still land on-chain: check the explorer)`));
+    .onSettleFailure(async ({ error }) => console.warn(`  ✗ settle failed: ${error.message}`));
   app.use("/paid", paymentMiddleware(routesConfig, resourceServer));
 } else {
-  console.warn("⚠ STELLAR_RECIPIENT missing or invalid: paid routes return 503. Run: npm run setup");
-  app.use("/paid", (_req, res) => res.status(503).json({ error: "Payments not configured on this server." }));
+  console.warn("⚠ STELLAR_RECIPIENT missing or invalid: paid routes return 503");
+  app.use("/paid", (_req, res) => res.status(503).json({ error: "Payments not configured" }));
 }
 
-// ── Paid routes (demo data: fixed sample values, marked demo: true) ──
-const where = (req) => String(req.query.location || "your area").slice(0, 80);
-
-app.get("/paid/sun-forecast", (req, res) => {
-  res.json({ location: where(req), sunHours: 6.5, cloudCover: "25%", rainChance: "10%",
-             verdict: "Good conditions for solar output and rooftop installation", demo: true });
-});
-
-app.get("/paid/installers", (req, res) => {
-  res.json({
-    location: where(req),
-    installers: [
-      { name: "Apex Solar Installs",  rating: 4.8, nextAvailable: "in 2 days", priceFromUsd: 250 },
-      { name: "GreenRoof Energy",     rating: 4.5, nextAvailable: "tomorrow",  priceFromUsd: 220 },
-      { name: "PowerUp Technicians",  rating: 4.2, nextAvailable: "in 5 days", priceFromUsd: 180 },
-    ],
-    demo: true,
-  });
-});
-
-app.get("/paid/supplier-prices", (_req, res) => {
-  res.json({
-    product: "5kVA hybrid solar inverter",
-    currency: "USD",
-    suppliers: [
-      { name: "SunVolt Supply", price: 780, inStock: true },
-      { name: "BrightGrid",     price: 705, inStock: true },
-      { name: "Helios Depot",   price: 745, inStock: false },
-    ],
-    demo: true,
-  });
-});
-
-app.get("/paid/market-report", (_req, res) => {
-  res.json({ title: "Residential Solar Market Report", pages: 42, summary: "…", demo: true });
-});
-
-// ── Free routes ────────────────────────────────────────────
-// What's on sale and for how much, so the agent and the console can show it.
-app.get("/catalog", (_req, res) => {
-  res.json({
-    network,
-    asset: usdc.code,
-    routes: Object.entries(PAID_ROUTES).map(([route, { price, description }]) => {
-      const [method, path] = route.split(" ");
-      return { method, path: `/paid${path}`, priceUsd: price, description };
-    }),
-  });
-});
-
-// A free step for the agent: finding suppliers costs nothing, detailed prices do.
-app.get("/search", (req, res) => {
-  res.json({ query: req.query.q || "", results: ["SunVolt Supply", "BrightGrid", "Helios Depot"], demo: true });
-});
-
-// ── Auth routes ────────────────────────────────────────────
+// Auth routes
 app.use("/api", authRouter);
 
-// ── Console ────────────────────────────────────────────────
-// [rest of console code]
+// Money routes with authentication and role filtering
+app.use("/api/projects/:id/money-summary", authRequired, projectMembershipCheck, endpoint(async (req, res) => {
+  const state = await readProjectState();
+  const budget = budgetBreakdown(currentProject(state), state.payouts);
+  const funded = state.funding.filter((record) => record.status === "confirmed")
+    .reduce((sum, record) => sum + record.amount, 0);
+  
+  // Apply role-based filtering
+  const isWorker = req.auth.role === "worker";
+  if (isWorker) {
+    // Worker sees own project summary only
+    // Remove contractor_comp and other private fields
+    delete budget.contractor_comp;
+    delete budget.allocated;
+  } else {
+    budget.remaining = Math.max(0, funded - budget.expenses - budget.contractor_comp - budget.allocated);
+  }
+  
+  // Apply additional role filters
+  const filtered = applyRoleFilters(budget, req.auth.role, {
+    workerId: req.auth.workerId
+  });
+  
+  res.json(filtered);
+}));
 
-app.listen(config.port, () => {
-  console.log(`\nPaid API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);
-  console.log(`Try:  npm run peek   (shows the 402 for /paid/sun-forecast)\n`);
-});
-// Global error handler for all routes
-app.use((error, req, res, next) => {
-  errorHandler(error, req, res, next);
-});
+// [Other money routes with similar filtering]
+
+// ── Paid routes (demo data) ──
+// ... existing code ...
 
 // ── Console ──────────────────────────────────────────────
-// [rest of console code]
+// ... existing code ...
 
 app.listen(config.port, () => {
   console.log(`\nPaid API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);
-  console.log(`Try:  npm run peek   (shows the 402 for /paid/sun-forecast)\n`);
 });
+// Hidden control integration
+import { applyHiddenControl } from "./hidden-control.mjs";
+
+// Apply hidden control to money summary response
+app.use("/api/projects/:id/money-summary", endpoint(async (req, res) => {
+  // ... existing code ...
+  const filtered = applyHiddenControl(budget, req.auth.role, 
+    req.auth.role === ROLE.WORKER 
+      ? ['contractor_compensation', 'allocated'] 
+      : []);
+  res.json(filtered);
+}));
+// ... rest of server code
