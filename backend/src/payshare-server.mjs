@@ -8,7 +8,7 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { config } from "./config.mjs";
 import { PROJECT } from "./project.mjs";
-import { moneyRouter } from "./money-api.mjs";
+import { moneyErrors, moneyRouter } from "./money-api.mjs";
 
 const { network, usdc, facilitator: fac } = config;
 
@@ -59,6 +59,8 @@ const facilitatorClient = new HTTPFacilitatorClient({
 });
 
 const app = express();
+// The reviewed, history-checked settlement route is enabled in the settlement PR.
+app.use("/paid", (_req, res) => res.sendStatus(503));
 
 // Plain-English log: 402 = "asked to pay", 200 = "paid and unlocked"
 app.use("/paid", (req, res, next) => {
@@ -92,7 +94,7 @@ app.get("/catalog", (_req, res) => {
 });
 
 // ── Money API for the frontend (role-filtered) ──
-app.use("/api", moneyRouter);
+app.use("/api", moneyRouter, moneyErrors);
 
 app.listen(config.port, () => {
     console.log(`\nPayShare API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);
