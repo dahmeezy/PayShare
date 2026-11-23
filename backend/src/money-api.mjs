@@ -18,12 +18,19 @@ export const validCents = (amount) => Number.isSafeInteger(amount) && amount >= 
 
 moneyRouter.get("/projects/:id/money-summary", endpoint(async (req, res) => {
   const state = await readProjectState();
-  const budget = budgetBreakdown(currentProject(state), state.payouts);
+  const project = currentProject(state);
+  const budget = budgetBreakdown(project, state.payouts);
   const funded = state.funding.filter((record) => record.status === "confirmed")
     .reduce((sum, record) => sum + record.amount, 0);
+
   if (isWorker(req)) {
-    for (const key of ["contractor_comp", "allocated", "paid", "pending", "unallocated", "remaining"]) delete budget[key];
+    // Worker: contractor_comp is null, hide allocated/unallocated/remaining
+    budget.contractor_comp = null;
+    delete budget.allocated;
+    delete budget.unallocated;
+    // Do NOT show remaining for workers (role-restricted)
   } else {
+    // Contractor/client: full summary including remaining
     budget.remaining = Math.max(0, funded - budget.expenses - budget.contractor_comp - budget.allocated);
   }
   res.json({ ...budget, funded });
