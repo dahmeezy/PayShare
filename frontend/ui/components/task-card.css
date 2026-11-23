@@ -1,0 +1,241 @@
+/* Task card */
+.task-card {
+  background-color: var(--color-neutral-white);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--space-lg);
+}
+
+.task-card .task-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: var(--border-width) solid var(--color-divider);
+}
+
+.task-card .task-card-title {
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80%;
+}
+
+.task-card .task-card-status {
+  font-size: var(--font-size-xs);
+}
+
+.task-card .task-card-status--assigned {
+  color: var(--color-text-secondary);
+  background-color: var(--color-neutral-light);
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-full);
+}
+
+.task-card .task-card-status--accepted {
+  color: var(--color-status-success);
+  background-color: var(--color-status-success-alpha-02);
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-full);
+}
+
+.task-card .task-card-status--in-progress {
+  color: var(--color-status-processing);
+  background-color: var(--color-status-processing-alpha-02);
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-full);
+}
+
+.task-card .task-card-status--submitted {
+  color: var(--color-status-failed);
+  background-color: var(--color-status-failed-alpha-02);
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-full);
+}
+
+.task-card .task-card-status--approved {
+  color: var(--color-status-success);
+  background-color: var(--color-status-success-alpha-02);
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-full);
+}
+
+.task-card .task-card-status--rejected {
+  color: var(--color-status-failed);
+  background-color: var(--color-status-failed-alpha-02);
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-full);
+}
+
+.task-card .task-card-status--cancelled {
+  color: var(--color-status-cancelled);
+  background-color: var(--color-status-cancelled-alpha-02);
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-full);
+}
+
+.task-card .task-card-body {
+  padding: var(--space-lg) var(--space-lg);
+}
+
+.task-card .task-card-description {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-lg);
+  line-height: 1.5;
+}
+
+.task-card .task-card-footer {
+  display: flex;
+  align-items: center;
+  padding: var(--space-md) var(--space-lg);
+  border-top: var(--border-width) solid var(--color-divider);
+}
+
+.task-card .task-card-assigned-to {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.task-card .task-card-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* Worker profile card */
+.worker-profile-card {
+  background-color: var(--color-neutral-white);
+  border: var(--border-width) solid var(--color-divider);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  text-align: center;
+}
+
+.worker-profile-card .worker-avatar {
+  width: var(--avatar-size, 6rem);
+  height: var(--avatar-size, 6rem);
+  margin: 0 auto var(--space-lg);
+}
+
+.worker-profile-card .worker-name {
+  font-family: var(--font-family);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-xxs);
+}
+
+.worker-profile-card .worker-role {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-lg);
+}
+
+.worker-profile-card .worker-allocation {
+  font-family: var(--font-family);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-brand-deep-navy);
+  margin-bottom: var(--space-sm);
+}
+
+.worker-profile-card .worker-allocation .currency {
+  font-size: var(--font-size-sm);
+  font-weight: normal;
+  color: var(--color-text-muted);
+}
+
+.worker-profile-card .worker-status-pill {
+  display: inline-block;
+}
+
+.worker-profile-card .worker-info {
+  text-align: left;
+  margin-top: var(--space-lg);
+}
+
+.worker-profile-card .worker-info .info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-xxs) 0;
+  border-bottom: var(--border-width) solid var(--color-divider);
+}
+
+.worker-profile-card .worker-info .info-row:last-child {
+  border-bottom: none;
+}
+
+.worker-profile-card .worker-info .info-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.worker-profile-card .worker-info .info-value {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+/* Transaction row */
+.transaction-row {
+  display: flex;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: var(--border-width) solid var(--color-divider);
+}
+
+.transaction-row .transaction-icon {
+  width: var(--space-md);
+  height: var(--space-md);
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  margin-right: var(--space-md);
+}
+
+.transaction-row .transaction-details {
+  flex: 1;
+}
+
+.transaction-row .transaction-title {
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: var(--space-xxs);
+}
+
+.transaction-row .transaction-meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.transaction-row .transaction-amount {
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.transaction-row .transaction-amount--positive {
+  color: var(--color-status-success);
+}
+
+.transaction-row .transaction-amount--negative {
+  color: var(--color-status-failed);
+}
+
+.transaction-row .status-badge {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-full);
+}

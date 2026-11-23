@@ -1,0 +1,151 @@
+/* Voice note player */
+.voice-player {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-family: var(--font-family);
+}
+
+.voice-player__duration {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  min-width: var(--avatar-size);
+  text-align: right;
+}
+
+.voice-player__controls {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.voice-player__btn {
+  width: var(--space-md);
+  height: var(--space-md);
+  border: var(--border-width) solid var(--color-neutral-medium);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast) var(--transition-easing),
+    border-color var(--transition-fast) var(--transition-easing);
+}
+
+.voice-player__btn:hover:not(.voice-player__btn--disabled) {
+  background-color: var(--color-neutral-light);
+  border-color: var(--color-neutral-dark);
+}
+
+.voice-player__btn:focus-visible:not(.voice-player__btn--disabled) {
+  outline: 2px solid var(--color-brand-teal);
+  outline-offset: var(--focus-outline-offset);
+  background-color: var(--color-neutral-light);
+  border-color: var(--color-brand-teal);
+}
+
+.voice-player__btn--disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Recording state */
+.voice-player__btn--recording {
+  background-color: var(--color-status-failed);
+  border-color: var(--color-status-failed);
+}
+
+.voice-player__btn--recording:hover {
+  background-color: var(--color-status-failed-hover);
+  border-color: var(--color-status-failed-hover);
+}
+
+.voice-player__btn--paused {
+  background-color: var(--color-brand-teal);
+  border-color: var(--color-brand-teal);
+  color: var(--color-neutral-white);
+}
+
+.voice-player__btn--paused:hover {
+  background-color: var(--color-brand-teal-hover);
+  border-color: var(--color-brand-teal-hover);
+}
+
+/* Record control */
+.record-control {
+  width: var(--record-size, 4rem);
+  height: var(--record-size, 4rem);
+  border-radius: var(--radius-full);
+  background-color: var(--color-neutral-medium);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast) var(--transition-easing);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.record-control:hover:not(.record-control--disabled) {
+  background-color: var(--color-neutral-dark);
+}
+
+.record-control:focus-visible:not(.record-control--disabled) {
+  outline: 2px solid var(--color-brand-teal);
+  outline-offset: var(--focus-outline-offset);
+  background-color: var(--color-neutral-dark);
+}
+
+.record-control--recording {
+  background-color: var(--color-status-failed);
+  animation: pulse-steady 2s infinite;
+}
+
+.record-control--recording .record-dot {
+  background-color: var(--color-neutral-white);
+  animation: none;
+}
+
+.record-control--idle .record-dot {
+  animation: pulse-steady 2s infinite;
+}
+
+@keyframes pulse-steady {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.record-dot {
+  width: var(--dot-size, 0.6rem);
+  height: var(--dot-size, 0.6rem);
+  border-radius: var(--radius-full);
+  background-color: var(--color-neutral-white);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: pulse-steady 2s infinite;
+  flex-shrink: 0;
+}
+
+/* Voice player status */
+.voice-status-idle {
+  color: var(--color-text-muted);
+}
+
+.voice-status-recording {
+  color: var(--color-status-failed);
+  font-weight: var(--font-weight-medium);
+}
+
+.voice-status-paused {
+  color: var(--color-brand-teal);
+  font-weight: var(--font-weight-medium);
+}
+
+.voice-status-playing {
+  color: var(--color-status-success);
+  font-weight: var(--font-weight-medium);
+}

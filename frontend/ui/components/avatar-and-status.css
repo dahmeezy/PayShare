@@ -1,0 +1,116 @@
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--avatar-size, 3rem);
+  height: var(--avatar-size, 3rem);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-white);
+  background-color: var(--color-neutral-medium);
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--radius-full);
+}
+
+.avatar.initials {
+  background-color: var(--color-neutral-dark);
+}
+
+.avatar .avatar-initials {
+  width: 100%;
+  height: 100%;
+}
+
+/* Status pill */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-xxs) var(--space-sm);
+  font-family: var(--font-family);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.status-pill .status-icon {
+  width: var(--space-sm);
+  height: var(--space-sm);
+  margin-right: var(--space-xxs);
+  flex-shrink: 0;
+}
+
+/* Status badges */
+.status-awaiting {
+  background-color: var(--color-neutral-light);
+  color: var(--color-status-awaiting);
+}
+
+.status-pending {
+  background-color: var(--color-status-pending-alpha-02);
+  color: var(--color-status-pending);
+}
+
+.status-processing {
+  background-color: var(--color-status-processing-alpha-02);
+  color: var(--color-status-processing);
+}
+
+.status-success {
+  background-color: var(--color-status-success-alpha-02);
+  color: var(--color-status-success);
+}
+
+.status-failed {
+  background-color: var(--color-status-failed-alpha-02);
+  color: var(--color-status-failed);
+}
+
+.status-cancelled {
+  background-color: var(--color-status-cancelled-alpha-02);
+  color: var(--color-status-cancelled);
+}
+
+/* Task status labels */
+.task-status-assigned {
+  background-color: var(--color-neutral-light);
+  color: var(--color-text-secondary);
+}
+
+.task-status-accepted {
+  background-color: var(--color-status-success-alpha-02);
+  color: var(--color-status-success);
+}
+
+.task-status-in-progress {
+  background-color: var(--color-status-processing-alpha-02);
+  color: var(--color-status-processing);
+}
+
+.task-status-submitted {
+  background-color: var(--color-status-failed-alpha-02);
+  color: var(--color-status-failed);
+}
+
+.task-status-approved {
+  background-color: var(--color-status-success-alpha-02);
+  color: var(--color-status-success);
+}
+
+.task-status-rejected {
+  background-color: var(--color-status-failed-alpha-02);
+  color: var(--color-status-failed);
+}
+
+.task-status-cancelled {
+  background-color: var(--color-status-cancelled-alpha-02);
+  color: var(--color-status-cancelled);
+}
