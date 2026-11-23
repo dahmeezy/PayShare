@@ -14,7 +14,8 @@
     "console": "node src/console/app.mjs",
     "start": "node scripts/start.mjs",
     "test": "node --test",
-    "init:preview": "node scripts/init-preview.mjs"
+    "init:preview": "node scripts/init-preview.mjs",
+    "start:payshare": "node src/payshare-server.mjs"
   },
   "engines": {
     "node": ">=22"

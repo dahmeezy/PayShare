@@ -1,3 +1,4 @@
+import { addWhatsAppRoutes } from "./whatsapp-api.mjs";
 import { payoutEligibility } from "./payout-eligibility.mjs";
 import { fundingWallet } from "./funding.mjs";
 import { addIncompleteTaskRoutes } from "./incomplete-task-api.mjs";
@@ -14,6 +15,8 @@ import { currentProject, projectError, readProjectState, updateProjectState } fr
 export const moneyRouter = express.Router();
 moneyRouter.use(express.json({ limit: "16kb" }));
 moneyRouter.use(authenticateProject);
+moneyRouter.use((req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
+moneyRouter.get("/session", (req, res) => res.json(req.auth));
 moneyRouter.param("id", (req, res, next, id) =>
   id === req.auth.projectId ? next() : res.status(404).json({ error: "Project not found" }));
 
@@ -24,13 +27,22 @@ export const validCents = (amount) => Number.isSafeInteger(amount) && amount >= 
 
 moneyRouter.get("/projects/:id/money-summary", endpoint(async (req, res) => {
   const state = await readProjectState();
-  const budget = budgetBreakdown(currentProject(state), state.payouts);
+  const project = currentProject(state);
+  const budget = budgetBreakdown(project, state.payouts);
   const funded = state.funding.filter((record) => record.status === "confirmed")
     .reduce((sum, record) => sum + record.amount, 0);
   if (isWorker(req)) {
-    for (const key of ["contractor_comp", "allocated", "paid", "pending", "unallocated", "remaining"]) delete budget[key];
+    for (const key of ["allocated", "paid", "pending", "unallocated"]) delete budget[key];
+    budget.contractor_comp = null;
+    budget.remaining = null;
   } else {
-    budget.remaining = Math.max(0, funded - budget.expenses - budget.contractor_comp - budget.allocated);
+    budget.pending = project.workers.reduce((sum, worker) => {
+      const payment = state.payouts[worker.id];
+      const task = state.tasks[worker.id];
+      if (payment.status === "paid" || ["cancelled", "reassigned"].includes(task?.status)) return sum;
+      return sum + (payment.amount ?? task?.partial_amount ?? toCents(worker.allocation));
+    }, 0);
+    budget.remaining = Math.max(0, funded - budget.expenses - budget.contractor_comp - budget.paid - budget.pending);
   }
   res.json({ ...budget, funded });
 }));
@@ -50,7 +62,8 @@ moneyRouter.post("/expenses", endpoint(async (req, res) => {
   const entry = { id: randomUUID(), amount, description: description.trim(), approved };
   await updateProjectState((state) => {
     state.expenses.push(entry);
-    budgetBreakdown(currentProject(state));
+    try { budgetBreakdown(currentProject(state)); }
+    catch (error) { throw projectError(error.message, 409); }
   });
   res.status(201).json(entry);
 }));
@@ -65,7 +78,8 @@ moneyRouter.put("/projects/:id/contractor-compensation", endpoint(async (req, re
   if (!validCents(amount)) throw projectError("Provide compensation in cents");
   await updateProjectState((state) => {
     state.contractorCompensation = amount;
-    budgetBreakdown(currentProject(state));
+    try { budgetBreakdown(currentProject(state)); }
+    catch (error) { throw projectError(error.message, 409); }
   });
   res.json({ amount, paid: false });
 }));
@@ -89,7 +103,8 @@ moneyRouter.post("/allocations", endpoint(async (req, res) => {
       throw projectError("Use an allocation change proposal for an existing agreement", 409);
     }
     state.allocations[workerId] = amount;
-    budgetBreakdown(currentProject(state));
+    try { budgetBreakdown(currentProject(state)); }
+    catch (error) { throw projectError(error.message, 409); }
     return { allocation_id: `alloc_${workerId}`, worker_id: workerId, amount };
   });
   res.status(201).json(entry);
@@ -124,6 +139,7 @@ addFundingRoutes(moneyRouter, endpoint);
 addTaskApprovalRoutes(moneyRouter, endpoint);
 addAllocationChangeRoutes(moneyRouter, endpoint);
 addIncompleteTaskRoutes(moneyRouter, endpoint);
+addWhatsAppRoutes(moneyRouter, endpoint);
 
 export function moneyErrors(error, req, res, next) {
   if (res.headersSent) return next(error);
