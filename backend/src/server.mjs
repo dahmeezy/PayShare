@@ -141,3 +141,15 @@ app.listen(config.port, () => {
   console.log(`\nPaid API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);
   console.log(`Try:  npm run peek   (shows the 402 for /paid/sun-forecast)\n`);
 });
+// Global error handler for all routes
+app.use((error, req, res, next) => {
+  errorHandler(error, req, res, next);
+});
+
+// ── Console ──────────────────────────────────────────────
+// [rest of console code]
+
+app.listen(config.port, () => {
+  console.log(`\nPaid API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);
+  console.log(`Try:  npm run peek   (shows the 402 for /paid/sun-forecast)\n`);
+});
