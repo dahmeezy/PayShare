@@ -1,0 +1,101 @@
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+.empty-state .empty-state-icon {
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto var(--space-lg);
+  color: var(--color-neutral-medium);
+}
+
+.empty-state .empty-state-title {
+  font-family: var(--font-family);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.empty-state .empty-state-description {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-xxs);
+}
+
+/* Loading state */
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+.loading-state .loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: var(--border-width) solid var(--color-neutral-light);
+  border-top-color: var(--color-brand-teal);
+  border-radius: var(--radius-full);
+  animation: spin 1s linear infinite;
+}
+
+.loading-state .loading-text {
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(90deg, var(--color-neutral-light) 25%, var(--color-neutral-medium) 50%, var(--color-neutral-light) 75%);
+  background-size: 200% 100%;
+  animation: skeleton 1.5s infinite ease-in-out;
+}
+
+@keyframes skeleton {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-text {
+  height: var(--font-size-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-xxs);
+}
+
+.skeleton-text-short {
+  width: 50%;
+  height: var(--font-size-sm);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-xxs);
+}
+
+.skeleton-image {
+  width: 4rem;
+  height: 4rem;
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-sm);
+}
+
+.skeleton-row {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.skeleton-row .skeleton-text {
+  flex: 1;
+}
+
+.skeleton-row .skeleton-image {
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-full);
+}
