@@ -113,6 +113,9 @@
   --transition-normal: 250ms ease;
   --transition-slow: 350ms ease;
 
+  /* Focus styles */
+  --focus-outline-offset: 2px;
+
   /* Button hover states */
   --color-brand-deep-navy-hover: #173a5e;
   --color-status-failed-hover: #ef4444;

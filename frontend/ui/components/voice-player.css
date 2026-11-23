@@ -9,7 +9,7 @@
 .voice-player__duration {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
-  min-width: 3rem;
+  min-width: var(--avatar-size);
   text-align: right;
 }
 
@@ -40,7 +40,7 @@
 
 .voice-player__btn:focus-visible:not(.voice-player__btn--disabled) {
   outline: 2px solid var(--color-brand-teal);
-  outline-offset: 2px;
+  outline-offset: var(--focus-outline-offset);
   background-color: var(--color-neutral-light);
   border-color: var(--color-brand-teal);
 }
@@ -93,7 +93,7 @@
 
 .record-control:focus-visible:not(.record-control--disabled) {
   outline: 2px solid var(--color-brand-teal);
-  outline-offset: 2px;
+  outline-offset: var(--focus-outline-offset);
   background-color: var(--color-neutral-dark);
 }
 
