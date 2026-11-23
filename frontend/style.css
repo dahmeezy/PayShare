@@ -332,3 +332,24 @@ body {
 .bottom-nav.client .bottom-nav-item:nth-child(3) { display: block; } /* Project finances */
 .bottom-nav.client .bottom-nav-item:nth-child(4) { display: block; } /* Deliverables and approvals */
 .bottom-nav.client .bottom-nav-item:nth-child(5) { display: block; } /* Transactions */
+// Route guards
+// Send users without proper role context to their home page with a clear message
+
+// In frontend/index.html:
+// - On DOMContentLoaded, check for saved role in localStorage
+// - If no role is set, show welcome screen for role selection
+// - If role is set, configure sidebar, top bar, and bottom nav per role
+// - If user tries to access a route without authentication,
+//   display route-guard-message and redirect after a delay
+
+// The route guard message element:
+// <div class="route-guard-message" id="routeGuardMsg" style="display: none;">
+//   You don't have permission to access this page. Redirecting to your home...
+// </div>
+
+// JavaScript logic:
+// - setRole(role) function configures the UI for the given role
+// - It adds the role-specific class to the sidebar element
+// - It updates the bottom navigation to role-specific items
+// - It shows the main content and hides the welcome screen
+// - It hides the route guard message if visible
