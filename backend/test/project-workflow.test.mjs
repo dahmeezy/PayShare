@@ -26,7 +26,7 @@ test("project API enforces roles, recorded approvals, changes and single x402 su
   });
   const { moneyRouter, moneyErrors } = await import("../src/money-api.mjs");
   const { mountPayoutRoutes } = await import("../src/payout-routes.mjs");
-  const { readProjectState } = await import("../src/project-store.mjs");
+  const { createProjectState, readProjectState } = await import("../src/project-store.mjs");
   const { TESTNET_PASSPHRASE, TESTNET_USDC_CONTRACT, TESTNET_USDC_ISSUER } = await import("../src/funding.mjs");
   const app = express();
   const hash = "5".repeat(64);
@@ -76,6 +76,10 @@ test("project API enforces roles, recorded approvals, changes and single x402 su
   const project = "/projects/proj_demo";
   const task = "/tasks/amara";
   const invoke = { task_id: "amara", worker_id: "amara", payment_id: "pay_amara" };
+  await api(agent, "/payments", invoke, 503);
+  await api(worker, project + "/payments", undefined, 503);
+  await assert.rejects(fs.stat(process.env.PAYSHARE_STATE_FILE), { code: "ENOENT" });
+  await createProjectState("testnet", payer);
   const spoof = await fetchLocal(base + "/api" + project + "/money-summary", { headers: { "x-demo-role": "contractor" } });
   assert.equal(spoof.status, 401);
   await api(worker, "/expenses", { amount: 100 }, 403);
@@ -148,6 +152,14 @@ test("project API enforces roles, recorded approvals, changes and single x402 su
   const signature = http.encodePaymentSignatureHeader({
     x402Version: 2, accepted: required.accepts[0], payload: { transaction: "fixture-only" },
   });
+  const stateFile = process.env.PAYSHARE_STATE_FILE;
+  const savedReservation = await fs.readFile(stateFile, "utf8");
+  await fs.rm(stateFile);
+  const withoutHistory = await fetchLocal(delivery, { headers: { ...headers, ...signature } });
+  assert.equal(withoutHistory.status, 503);
+  assert.equal(settled, 0);
+  await fs.writeFile(stateFile, savedReservation);
+
   const replies = await Promise.all([1, 2].map(() => fetchLocal(delivery, { headers: { ...headers, ...signature } })));
   assert.deepEqual(replies.map(({ status }) => status).sort(), [200, 409]);
   assert.equal(settled, 1);
@@ -163,4 +175,19 @@ test("project API enforces roles, recorded approvals, changes and single x402 su
   }, 201);
   assert.equal(draft.sent, false);
   assert.equal(new URL(draft.share_url).host, "wa.me");
+
+  const submitted = await readProjectState();
+  const damaged = structuredClone(submitted);
+  delete damaged.payouts.amara;
+  await fs.writeFile(stateFile, JSON.stringify(damaged));
+  await api(agent, "/payments", invoke, 503);
+  await api(worker, project + "/payments", undefined, 503);
+  await fs.rm(stateFile);
+  await api(agent, "/payments", invoke, 503);
+  assert.equal(settled, 1);
+  await assert.rejects(fs.stat(stateFile), { code: "ENOENT" });
+
+  await createProjectState("preview");
+  await api(agent, "/payments", invoke, 409);
+  assert.equal(settled, 1);
 });

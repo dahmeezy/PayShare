@@ -8,7 +8,7 @@ import { endpoint } from "./money-api.mjs";
 import { reservePayout } from "./payout-eligibility.mjs";
 import { requireTestnet } from "./payout-validation.mjs";
 import { PROJECT } from "./project.mjs";
-import { projectError, readProjectState, updateProjectState } from "./project-store.mjs";
+import { assertPayoutHistory, projectError, readProjectState, updateProjectState } from "./project-store.mjs";
 import { payoutUnits, walletUsdc } from "./stellar-settlement.mjs";
 
 function agentOnly(req, res, next) {
@@ -28,6 +28,7 @@ export function mountPayoutRoutes(app, config, facilitatorClient) {
     if (!PROJECT.workers.some(({ id }) => id === taskId) || workerId !== taskId || paymentId !== `pay_${taskId}`) {
       throw projectError("Use the project task, worker and its existing payment ID");
     }
+    assertPayoutHistory(await readProjectState(), payer);
     res.status(201).json(await reservePayout(taskId, payer, await walletUsdc(payer)));
   }));
 
@@ -35,7 +36,9 @@ export function mountPayoutRoutes(app, config, facilitatorClient) {
   for (const worker of PROJECT.workers) {
     const path = `/deliverable/${worker.id}`;
     const readPayment = async (context) => {
-      const payment = (await readProjectState()).payouts[worker.id];
+      const state = await readProjectState();
+      assertPayoutHistory(state, payer);
+      const payment = state.payouts[worker.id];
       if (payment.attempt !== context.adapter.getHeader("x-payshare-attempt")) throw projectError("Invalid payout attempt");
       return payment;
     };
@@ -51,12 +54,15 @@ export function mountPayoutRoutes(app, config, facilitatorClient) {
       const authorize = async () => {
         if (req.method !== "GET") throw projectError("Use GET for a payment quote", 405);
         const attempt = req.get("x-payshare-attempt");
-        const payment = (await readProjectState()).payouts[worker.id];
+        const state = await readProjectState();
+        assertPayoutHistory(state, payer);
+        const payment = state.payouts[worker.id];
         if (!attempt || payment.attempt !== attempt || payment.status !== "processing" || payment.submittedAt || payment.payer !== payer) {
           throw projectError("No open payout attempt for this task", 409);
         }
         if (req.get("payment-signature") || req.get("x-payment")) {
           await updateProjectState((state) => {
+            assertPayoutHistory(state, payer);
             const current = state.payouts[worker.id];
             if (current.attempt !== attempt || current.status !== "processing" || current.submittedAt) {
               throw projectError("This payment has already been submitted", 409);

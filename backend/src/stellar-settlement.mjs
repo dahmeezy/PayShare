@@ -1,6 +1,6 @@
 import { rpc, scValToNative, StrKey } from "@stellar/stellar-sdk";
 import { horizon, TESTNET_PASSPHRASE, TESTNET_USDC_CONTRACT, TESTNET_USDC_ISSUER, usdcUnits, validHash } from "./funding.mjs";
-import { projectError, updateProjectState } from "./project-store.mjs";
+import { assertPayoutHistory, projectError, updateProjectState } from "./project-store.mjs";
 
 export const TESTNET_RPC = "https://soroban-testnet.stellar.org";
 export const payoutUnits = (cents) => String(BigInt(cents) * 100_000n);
@@ -53,6 +53,7 @@ export async function finishPayout(id, payment, hash, server = new rpc.Server(TE
   if (network.passphrase !== TESTNET_PASSPHRASE) throw new Error("Unexpected Stellar network");
   const receipt = verifiedSettlement(hash, await server.getTransaction(hash), payment);
   return updateProjectState((state) => {
+    assertPayoutHistory(state, payment.payer);
     const current = state.payouts[id];
     if (current.status === "paid" && current.tx === receipt.tx) return current;
     if (current.attempt !== payment.attempt || !current.submittedAt || !["processing", "failed"].includes(current.status) ||

@@ -1,25 +1,34 @@
-# Run the PayShare testnet project
+# Run PayShare on Stellar testnet
 
-Run the commands from `backend/` with Node.js 22 or newer.
+Use Node.js 22 or newer. Run commands from `backend/`.
 
-1. Run `npm ci`, `npm run setup`, and `node scripts/workers.mjs`. Setup creates Stellar testnet accounts and adds Circle USDC trustlines. Get testnet USDC for the client wallet. Use a separate client and payout wallet.
-2. In `.env`, set `FACILITATOR=backup`, `AGENT_PLANNER=scripted`, and `PAYSHARE_CLIENT_WALLET` to the client's **public** testnet address. The payout wallet is the public address for `STELLAR_SECRET_KEY`. If the server runs separately from the signer, also set `PAYSHARE_PAYER_WALLET` on the server to that same public address.
-3. Set separate random local tokens (32 characters or more) for the client, contractor, each worker, and agent. Run `node src/payshare-server.mjs`, open `http://127.0.0.1:4021/money`, and use the appropriate token. Keep `.env`, signing keys, and the state file private.
-4. As client, create a funding request, send one Circle USDC payment on Stellar **testnet** from the configured client address to the displayed wallet, and paste its transaction hash. PayShare checks the ledger before updating available funds. The seeded demo budget is 10 USDC and the Amara allocation is 1.50 USDC.
-5. As contractor, enter task terms in Deliverables. As the worker, accept the terms. As contractor, approve completed work and supply a submission reference. As client, confirm the deliverable if designated for client review. Allocation changes and incomplete work reports have their own approval screens.
-6. To enable testnet payouts, set `PAYSHARE_ENABLE_TESTNET_PAYOUTS=true` and restart the server. From the same backend directory run `node src/payshare-agent.mjs pay amara`. Open Payments to see status and the Stellar testnet receipt. Running the same payout again should be rejected.
-7. Run `npm test` for calculation, permission, workflow, and settlement tests. Tests use disposable state and simulated ledger/facilitator responses.
+## Local preview
 
-## Payout recovery
+Copy `.env.example` to `.env` if you do not already have one. Set `FACILITATOR=backup`, `AGENT_PLANNER=scripted`, and `PAYSHARE_ENABLE_TESTNET_PAYOUTS=false`. Set separate random values of at least 32 characters for the client, contractor, and each worker. Use `PAYSHARE_STATE_FILE` to choose a separate file for the preview if you already have a payment project.
 
-The server first reserves an amount from the project's verified funding and records the start of a submission before calling the facilitator. The agent only accepts a quote matching that amount, worker wallet, and Circle testnet USDC. It records the payment as paid after Stellar confirms that exact transfer.
+Run `npm ci`, `npm run init:preview` once, then `npm run start:payshare`. Open `http://127.0.0.1:4021/money` and sign in with a role token. Preview history is permanently blocked from sending payouts.
 
-If a payout is still pending on the ledger, use `node src/payshare-agent.mjs reconcile amara [transaction-hash]`. The hash is optional when the facilitator already returned it. If the agent stopped before submitting a signature, `node src/payshare-agent.mjs release amara` releases the reservation. The release command rejects signed submissions. Keep and back up the state file. Archive the state before changing the project's wallet or starting a separate test project.
+## New testnet payment project
 
-## MVP choices and handoff
+1. Start in a fresh copy with an empty `STELLAR_SECRET_KEY` and `PAYSHARE_PAYER_WALLET`, and with no project history at the configured path. After approval to set up testnet wallets, run `npm run setup -- --new-project`. This creates initial history tied to the new payer and sets up the Stellar testnet wallets. Run `node scripts/workers.mjs` to set up the worker wallets. Finish wallet setup with `npm run setup` if a network error interrupts the first run.
+2. Set `FACILITATOR=backup`, `AGENT_PLANNER=scripted`, and `PAYSHARE_CLIENT_WALLET` to the client's public testnet address. The payout wallet is the public address for `STELLAR_SECRET_KEY`. Keep the key and separate role and agent tokens in private configuration.
+3. As client, create a funding request. When approved, send one Circle USDC transfer on Stellar testnet from the client wallet to the displayed payer address and enter the transaction hash. PayShare verifies the source, destination, token, amount, and success before counting the deposit. The sample budget is 10 USDC and Amara's allocation is 1.50 USDC.
+4. Set and accept task terms, approve the work as contractor, and confirm as client if the task requires client review.
+5. For an approved testnet payout, set `PAYSHARE_ENABLE_TESTNET_PAYOUTS=true` and restart the local app. Run `node src/payshare-agent.mjs pay amara` using the same state file as the app. Check the Payments screen for the Stellar receipt. A repeat payout is blocked.
 
-- This branch uses the existing single-project demo and its one work item per worker. Team A's project, invitation, task/submission and session services are needed to connect real projects, identities, worker onboarding, and reassigned work. A transferred item is recorded and the replacement worker is notified. The new assignment and its agreed pay go through Team A's task and allocation handoff.
-- The client can make multiple verified transfers, one payment operation per transaction. The agent signs locally with its dedicated testnet key. No public-network payout is available.
-- Each allocation change requires the affected worker's acceptance. An increase also requires the client to approve the larger commitment. A worker's counteroffer goes back to the contractor before applying the normal client rule.
-- Incomplete work needs a documented resolution. Partial pay requires the worker's agreement and a new contractor review, plus client approval when required. The approved original allocation remains in the history.
-- WhatsApp uses share links. Configure `PAYSHARE_APP_URL` with the deployed HTTPS origin and the worker phone numbers in `.env`. The link opens a draft for the sender and a sign-in page for the recipient. A sender still presses Send in WhatsApp.
+## When payment history is unavailable
+
+Keep one durable state file and a backup. The application stops project changes and payouts if the file is missing, damaged, or missing even one worker's payment record. Restore a trusted copy and reconcile every uncertain or recent payout against Stellar before using the project again. A copy made before a payment can be stale. Keep the app and agent stopped while restoring the file. Preview initialization cannot reopen trusted payment history or enable payouts.
+
+For a submitted payment, use `node src/payshare-agent.mjs reconcile amara [transaction-hash]`. The hash is optional when the facilitator already supplied it. An operator can release a reservation with `node src/payshare-agent.mjs release amara` only if the signature was never submitted.
+
+## Host a preview
+
+- Use a Node.js 22+ web service connected to this private repository and a persistent volume. Run one instance. Set the service's working directory to `backend/` and its build command to `npm ci`.
+- Set `PAYSHARE_HOST=0.0.0.0`, let the host provide `PORT`, and set `FACILITATOR=backup`, `AGENT_PLANNER=scripted`, and `PAYSHARE_ENABLE_TESTNET_PAYOUTS=false`.
+- Set `PAYSHARE_STATE_FILE` to an absolute path on the persistent volume. Set private role tokens through the host and give reviewers their tokens privately. Use no wallet signing key for the preview.
+- Run `npm run init:preview` once with the volume mounted. Start the app with `node --env-file=.env.example src/payshare-server.mjs`. Use HTTPS, `/healthz` to check service health, and `/money` for the prototype.
+
+## Hackathon scope
+
+This version uses the existing sample project and one work item per worker. Team A's account, project, invitation and task services are needed to connect real members, submissions and replacement assignments. An allocation increase requires client consent. Partial pay requires the worker's agreement and a new review. For WhatsApp, set the HTTPS app origin and worker phone numbers through private settings. PayShare prepares a share link, and the sender chooses whether to send it in WhatsApp.
