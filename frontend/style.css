@@ -279,3 +279,56 @@ body {
   .bottom-nav { flex-direction: column; }
   .bottom-nav .bottom-nav-item { width: 100%; justify-content: center; }
 }
+/* Sidebar configurations - fixed */
+
+.sidebar.contractor .sidebar-nav-link { width: 100%; }
+.sidebar.worker .sidebar-nav-link { width: 100%; }
+.sidebar.client .sidebar-nav-link { width: 100%; }
+
+/* Contractor sidebar has 10 visible links */
+.sidebar.contractor .sidebar-nav-link:nth-child(1) { display: block; } /* Overview */
+.sidebar.contractor .sidebar-nav-link:nth-child(2) { display: block; } /* Projects */
+.sidebar.contractor .sidebar-nav-link:nth-child(3) { display: block; } /* Workers */
+.sidebar.contractor .sidebar-nav-link:nth-child(4) { display: block; } /* Tasks */
+.sidebar.contractor .sidebar-nav-link:nth-child(5) { display: block; } /* Budget and allocations */
+.sidebar.contractor .sidebar-nav-link:nth-child(6) { display: block; } /* Approvals */
+.sidebar.contractor .sidebar-nav-link:nth-child(7) { display: block; } /* Transactions */
+.sidebar.contractor .sidebar-nav-link:nth-child(8) { display: block; } /* Agent activity */
+.sidebar.contractor .sidebar-nav-link:nth-child(9) { display: block; } /* Notifications */
+.sidebar.contractor .sidebar-nav-link:nth-child(10) { display: block; } /* Settings */
+
+/* Worker sidebar has 7 visible links */
+.sidebar.worker .sidebar-nav-link:nth-child(1) { display: block; } /* Overview */
+.sidebar.worker .sidebar-nav-link:nth-child(2) { display: block; } /* My tasks */
+.sidebar.worker .sidebar-nav-link:nth-child(3) { display: block; } /* Submissions */
+.sidebar.worker .sidebar-nav-link:nth-child(4) { display: block; } /* My allocation */
+.sidebar.worker .sidebar-nav-link:nth-child(5) { display: block; } /* Payment history */
+.sidebar.worker .sidebar-nav-link:nth-child(6) { display: block; } /* Notifications */
+.sidebar.worker .sidebar-nav-link:nth-child(7) { display: block; } /* Settings */
+
+/* Client sidebar links */
+.sidebar.client .sidebar-nav-link:nth-child(1) { display: block; } /* Overview */
+.sidebar.client .sidebar-nav-link:nth-child(2) { display: block; } /* Projects */
+.sidebar.client .sidebar-nav-link:nth-child(3) { display: block; } /* Project finances */
+.sidebar.client .sidebar-nav-link:nth-child(4) { display: block; } /* Worker allocations */
+.sidebar.client .sidebar-nav-link:nth-child(5) { display: block; } /* Deliverables and approvals */
+.sidebar.client .sidebar-nav-link:nth-child(6) { display: block; } /* Transactions */
+
+/* Mobile bottom nav configurations */
+.bottom-nav.contractor .bottom-nav-item:nth-child(1) { display: block; } /* Home */
+.bottom-nav.contractor .bottom-nav-item:nth-child(2) { display: block; } /* Projects */
+.bottom-nav.contractor .bottom-nav-item:nth-child(3) { display: block; } /* Workers */
+.bottom-nav.contractor .bottom-nav-item:nth-child(4) { display: block; } /* Payouts */
+.bottom-nav.contractor .bottom-nav-item:nth-child(5) { display: block; } /* Notifications */
+
+.bottom-nav.worker .bottom-nav-item:nth-child(1) { display: block; } /* Home */
+.bottom-nav.worker .bottom-nav-item:nth-child(2) { display: block; } /* Tasks */
+.bottom-nav.worker .bottom-nav-item:nth-child(3) { display: block; } /* Allocation */
+.bottom-nav.worker .bottom-nav-item:nth-child(4) { display: block; } /* Payments */
+.bottom-nav.worker .bottom-nav-item:nth-child(5) { display: block; } /* Notifications */
+
+.bottom-nav.client .bottom-nav-item:nth-child(1) { display: block; } /* Home */
+.bottom-nav.client .bottom-nav-item:nth-child(2) { display: block; } /* Projects */
+.bottom-nav.client .bottom-nav-item:nth-child(3) { display: block; } /* Project finances */
+.bottom-nav.client .bottom-nav-item:nth-child(4) { display: block; } /* Deliverables and approvals */
+.bottom-nav.client .bottom-nav-item:nth-child(5) { display: block; } /* Transactions */
