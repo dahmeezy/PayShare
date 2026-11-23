@@ -54,12 +54,11 @@
 .voice-player__btn--recording {
   background-color: var(--color-status-failed);
   border-color: var(--color-status-failed);
-  color: var(--color-neutral-white);
 }
 
 .voice-player__btn--recording:hover {
-  background-color: #ef4444;
-  border-color: #ef4444;
+  background-color: var(--color-status-failed-hover, #ef4444);
+  border-color: var(--color-status-failed-hover, #ef4444);
 }
 
 .voice-player__btn--paused {
@@ -69,8 +68,8 @@
 }
 
 .voice-player__btn--paused:hover {
-  background-color: #2563eb;
-  border-color: #2563eb;
+  background-color: var(--color-brand-teal-hover, #2563eb);
+  border-color: var(--color-brand-teal-hover, #2563eb);
 }
 
 /* Record control */

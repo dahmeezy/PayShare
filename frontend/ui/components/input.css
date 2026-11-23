@@ -19,7 +19,7 @@
 .input:focus-visible {
   outline: none;
   border-color: var(--color-brand-teal);
-  box-shadow: 0 0 0 3px rgba(21, 154, 131, 0.15);
+  box-shadow: 0 0 0 3px var(--color-input-focus);
 }
 
 /* Search field variant - slightly different padding */
@@ -36,7 +36,7 @@
 
 .search-field:focus-visible {
   border-color: var(--color-brand-teal);
-  box-shadow: 0 0 0 3px rgba(21, 154, 131, 0.15);
+  box-shadow: 0 0 0 3px var(--color-input-focus);
 }
 
 /* Dropdown select */
@@ -54,7 +54,7 @@
 
 .select:focus-visible {
   border-color: var(--color-brand-teal);
-  box-shadow: 0 0 0 3px rgba(21, 154, 131, 0.15);
+  box-shadow: 0 0 0 3px var(--color-input-focus);
   background-image: var(--icon-chevron-down);
 }
 
@@ -68,8 +68,8 @@
 }
 
 .checkbox-input {
-  width: var(--space-md);
-  height: var(--space-md);
+  width: var(--dot-size);
+  height: var(--dot-size);
   flex-shrink: 0;
   border: var(--border-width) solid var(--color-input-border);
   border-radius: var(--radius-sm);
@@ -91,10 +91,10 @@
 
 .checkbox-input:checked::after {
   content: "";
-  width: 0.4rem;
-  height: 0.4rem;
+  width: var(--dot-size);
+  height: var(--dot-size);
   border: solid var(--color-neutral-white);
-  border-width: 0 0.15rem 0.1rem 0;
+  border-width: 0 var(--dot-size) calc(var(--dot-size) * 0.25) 0;
   transform: rotate(45deg);
   position: absolute;
   top: 50%;

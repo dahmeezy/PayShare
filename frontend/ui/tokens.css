@@ -23,6 +23,9 @@
   --color-input-bg: #FFFFFF;
   --color-input-border: #D1D5DB;
   --color-input-placeholder: #6B7280;
+  --color-input-focus: rgba(21, 154, 131, 0.15);
+  --color-brand-teal-alpha-01: rgba(21, 154, 131, 0.1);
+  --color-brand-teal-alpha-02: rgba(21, 154, 131, 0.05);
 
   /* Divider */
   --color-divider: #E5E7EB;
@@ -73,6 +76,16 @@
   --radius-lg: 0.75rem;    /* 12px */
   --radius-full: 9999px;
 
+  /* Sizes - component specific */
+  --avatar-size: 3rem;
+  --dot-size: 0.6rem;
+  --progress-bar-height: 0.5rem;
+  --spinner-size: 2rem;
+  --skeleton-height: 1rem;
+  --skeleton-text-height: 0.875rem;
+  --empty-icon-size: 4rem;
+  --skeleton-image-size: 4rem;
+
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -95,9 +108,15 @@
   --z-fixed: 1030;
   --z-modal: 1050;
 
+  /* Transition */
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
   --transition-slow: 350ms ease;
+
+  /* Button hover states */
+  --color-brand-deep-navy-hover: #173a5e;
+  --color-status-failed-hover: #ef4444;
+  --color-brand-teal-hover: #2563eb;
 }
 
 /* Dark theme override */
