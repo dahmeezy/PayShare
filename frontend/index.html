@@ -3,144 +3,217 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PayShare - Fair, on-time pay for everyone on the project</title>
+  <title>PayShare - Role-Based Access</title>
   <link rel="stylesheet" href="style.css">
   <link rel="import" href="../ui/icons/icons.svg">
 </head>
 <body>
-  <div class="max-w-1440 mx-auto">
-    <!-- Top navigation -->
-    <header class="app-bar mb-8">
-      <div class="app-bar-title">PayShare</div>
-      <div class="app-bar-actions">
-        <button class="btn btn-sm btn-secondary">Log in</button>
-        <button class="btn btn-sm btn-primary">Sign up</button>
+  <div class="max-w-1440">
+    <!-- Top bar - visible on all pages -->
+    <div class="top-bar" id="topBar">
+      <div class="help-guides">
+        <a href="#" style="color: var(--color-brand-teal);">Help and guides</a>
       </div>
-    </header>
+      <div class="user-name" id="userName">
+        <!-- Filled in by JS from session -->
+        Welcome, {{role}}
+      </div>
+      <div class="stellar-testnet-tag">Stellar Testnet</div>
+      <input type="text" class="search-input" id="searchInput" placeholder="Search..." aria-label="Search">
+      <button class="bell-icon" aria-label="Notifications" id="bellBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2.2-.4 3.1-1.2l3.17-3.17a8 8 0 0 0-1.42-4.39A5.987 5.987 0 0 0 12 6.75a5.986 5.986 0 0 0-3.07 1.05A8 8 0 0 0 4 12c0 4.42 3.58 8 8 8z"/></svg>
+      </button>
+      <button class="language-globe" aria-label="Language" id="langBtn">
+        English
+      </button>
+    </div>
 
-    <!-- Landing hero section -->
-    <section class="grid md:grid-cols-2 gap-8 mb-8">
-      <!-- Hero left panel -->
-      <div>
-        <!-- Status pill -->
-        <span class="status-pill status-pending">
-          <span class="status-icon"></span>Pending payment
-        </span>
+    <!-- Sidebar - role-aware -->
+    <div class="sidebar contractor" id="sidebar" style="--sidebar-width: 240px;">
+      <div class="project-switcher">
+        <div class="project-name" id="projectName">Lagos Wedding Decoration</div>
+        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav">
+        <!-- Contractor: 10 items -->
+        <!-- Overview -->
+        <a href="#overview" class="sidebar-nav-link sidebar-nav-link--active">
+          <svg class="sidebar-nav-icon"><use href="#icon-home"/></svg>
+          Overview
+        </a>
+        <!-- Projects -->
+        <a href="#projects" class="sidebar-nav-link">
+          <svg class="sidebar-nav-icon"><use href="#icon-file"/></svg>
+          Projects
+        </a>
+        <!-- Workers -->
+        <a href="#workers" class="sidebar-nav-link">
+          <svg class="sidebar-nav-icon"><use href="#icon-users"/></svg>
+          Workers
+        </a>
+        <!-- Tasks -->
+        <a href="#tasks" class="sidebar-nav-link">
+          <svg class="sidebar-nav-icon"><use href="#icon-check"/></svg>
+          Tasks
+        </a>
+        <!-- Budget and allocations -->
+        <a href="#budget" class="sidebar-nav-link">
+          <svg class="sidebar-nav-icon"><use href="#icon-wallet"/></svg>
+          Budget and allocations
+        </a>
+        <!-- Approvals -->
+        <a href="#approvals" class="sidebar-nav-link">
+          <svg class="sidebar-nav-icon"><use href="#icon-palette"/></svg>
+          Approvals
+        </a>
+        <!-- Transactions -->
+        <a href="#transactions" class="sidebar-nav-link">
+          <svg class="sidebar-nav-icon"><use href="#icon-file"/></svg>
+          Transactions
+        </a>
+        <!-- Agent activity -->
+        <a href="#agent-activity" class="sidebar-nav-link">
+          <svg class="sidebar-nav-icon"><use href="#icon-image"/></svg>
+          Agent activity
+        </a>
+        <!-- Notifications -->
+        <a href="#notifications" class="sidebar-nav-link">
+          <svg class="sidebar-nav-icon"><use href="#icon-bell"/></svg>
+          Notifications
+        </a>
+        <!-- Settings -->
+        <a href="#settings" class="sidebar-nav-link">
+          <svg class="sidebar-nav-icon"><use href="#icon-settings"/></svg>
+          Settings
+        </a>
+      </nav>
+    </div>
 
-        <h1 class="text-2xl font-bold mb-4">
-          Fair, on-time pay for everyone on the project.
-        </h1>
-
-        <p class="text-text-secondary mb-6">
-          PayShare records who is owed what, tracks the work, and pays each person
-          automatically once the agreed approvals are in. No chasing, no guessing.
-        </p>
-
-        <div class="flex gap-3">
-          <button class="btn btn-primary">Get Started</button>
-          <button class="btn btn-secondary">Watch Demo</button>
+    <!-- Main content area -->
+    <main class="main-content" id="mainContent">
+      <!-- Page content will be loaded here -->
+      <div class="welcome-screen">
+        <h1>PayShare</h1>
+        <p>Select a role to begin</p>
+        <div class="role-buttons">
+          <button class="btn btn-primary" onclick="setRole('contractor')">Contractor</button>
+          <button class="btn btn-secondary" onclick="setRole('worker')">Worker</button>
+          <button class="btn btn-secondary" onclick="setRole('client')">Client</button>
         </div>
       </div>
+    </main>
 
-      <!-- Sample cards right panel -->
-      <div>
-        <h3 class="text-semibold mb-4">Sample Projects</h3>
+    <!-- Route guard message -->
+    <div class="route-guard-message" id="routeGuardMsg" style="display: none;">
+      You don't have permission to access this page. Redirecting to your home...
+    </div>
 
-        <div class="space-y-3">
-          <article class="sample-card">
-            <div class="card-title">Lagos Wedding Decoration</div>
-            <p class="card-meta">Amara Okafor, Sew wedding outfits, 150 USDC</p>
-          </article>
-
-          <article class="sample-card">
-            <div class="card-title">Event Graphics</div>
-            <p class="card-meta">Chidi Eze, Event graphics, 100 USDC</p>
-          </article>
-
-          <article class="sample-card">
-            <div class="card-title">Arrange flowers</div>
-            <p class="card-meta">Ngozi Bello, Arrange flowers, 180 USDC</p>
-          </article>
-        </div>
+    <!-- Mobile bottom nav -->
+    <div class="bottom-nav contractor" id="bottomNav">
+      <div class="bottom-nav-item" onclick="navigate('home')">
+        <svg width="24" height="24" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-3.1 4 3.1v-6l-5.5 8.6c-.3.5-.8.9-1.4.9s-1.1-.4-1.4-.9L12 14l-1.4 3.6c-.3.5-.8.9-1.4.9s-1.1-.4-1.4-.9L5 22V4c0-1.1.9-2 2-2h12c1.1 0 2 .9 2 2vzM2 2h4l2 5h14l2-5h4L2 2z"/></svg>
+        Home
       </div>
-    </section>
-
-    <!-- Role cards section -->
-    <section class="mb-8">
-      <h2 class="text-semibold mb-4">For each role</h2>
-
-      <div class="grid-cols-3 gap-4">
-        <!-- Contractor card -->
-        <article class="role-card">
-          <div class="role-icon" style="background-color: var(--color-brand-deep-navy);">C</div>
-          <h4>For contractors</h4>
-          <p>Set the budget, agree each person's share and let the agent pay approved work.</p>
-        </article>
-
-        <!-- Worker card -->
-        <article class="role-card" style="background-color: var(--color-brand-teal);">
-          <div class="role-icon" style="color: var(--color-neutral-white);">W</div>
-          <h4>For workers</h4>
-          <p>See your task and agreed pay before you start, and get paid when work is approved.</p>
-        </article>
-
-        <!-- Client card -->
-        <article class="role-card">
-          <div class="role-icon" style="background-color: #8B5CF6;">Cl</div>
-          <h4>For clients</h4>
-          <p>Fund once and see exactly where every USDC goes.</p>
-        </article>
+      <div class="bottom-nav-item" onclick="navigate('projects')">
+        <svg width="24" height="24" viewBox="0 0 24 24"><path d="M22 7H2l-6.97-5.47a1 1 0 0 0-1.52 0L3 7H21a5 5 0 0 1 0 10zM5 17a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-4H5z"/></svg>
+        Projects
       </div>
-    </section>
-
-    <!-- How it works in 4 steps -->
-    <section class="mb-8">
-      <h2 class="text-semibold mb-6">How it works in 4 steps</h2>
-
-      <div class="grid-cols-1 md:grid-cols-4 gap-3">
-        <div class="step">
-          <div class="step-number">1</div>
-          <div>
-            <h4>Client funds the budget</h4>
-            <p>Held for the project</p>
-          </div>
-        </div>
-
-        <div class="step">
-          <div class="step-number">2</div>
-          <div>
-            <h4>Contractor agrees shares</h4>
-            <p>Each worker accepts their task and pay</p>
-          </div>
-        </div>
-
-        <div class="step">
-          <div class="step-number">3</div>
-          <div>
-            <h4>Work is approved</h4>
-            <p>By the contractor, and the client where agreed</p>
-          </div>
-        </div>
-
-        <div class="step">
-          <div class="step-number">4</div>
-          <div>
-            <h4>Agent pays automatically</h4>
-            <p>With a receipt for everyone</p>
-          </div>
-        </div>
+      <div class="bottom-nav-item" onclick="navigate('tasks')">
+        <svg width="24" height="24" viewBox="0 0 24 24"><path d="M15 18l-5-5L9 10l5-5 1.41 1.41L10.83 12l4.58 4.58L15 6z"/></svg>
+        Tasks
       </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="footer">
-      <div class="whatsapp-footer">
-        Works with WhatsApp - English, Yoruba, Hausa, Igbo, Pidgin
+      <div class="bottom-nav-item" onclick="navigate('allocation')">
+        <svg width="24" height="24" viewBox="0 0 24 24"><path d="M16.5 2c-.83 0-1.5.67-1.5 1.5v14c0 .83.67 1.5 1.5 1.5h5.075c.355 0 .54-.23.54-.54v-2.65c-.36 1.06-.38 1.48-.54 2.23l1.55 2.25c.17.25.45.43.77.43h2.25c.53 0 .69-.45.52-.9l-1.5-2.25c-.07-1.29-1.05-2.16-2.35-2.16h-3.85c-.5 0-.66.63-.38 1.32l1.75 2.35c.08.24.3.43.58.43h.1c.29 0 .53-.17.58-.45l1.75-2.35c.92-.07 1.25-.76 1.25-1.33v-2.3c0-.53-.38-1.06-1-1.15l-1.5-2.25c.12-.38-.06-.79-.38-.9l-1.5-2.25c-.47.66-1.13.97-2.05.97h-.5c-.66 0-1.14-.35-1.41-.83l-.15-.25zM12 6.5l2.25 3.35c.07.1.15.2.23.3h.77c.1 0 .18-.09.23-.3L12 6.5zm0 5.5l2.25 1.6c.07.04.15.08.23.12h.58c.09 0 .17-.08.23-.12l2.25-1.6c.07-.08.07-.18.07-.28v-.5c0-.1-.07-.2-.17-.28l-2.25-1.6c-.07-.04-.15-.08-.23-.12h-.58c-.08 0-.16.08-.23.12l2.25 1.6c.07.04.15.08.23.12h.77c.1 0 .18-.09.23-.3l-2.25-1.6z"/></svg>
+        Allocation
       </div>
-      <div>
-        © 2026 PayShare - USDC on Stellar
+      <div class="bottom-nav-item" onclick="navigate('payments')">
+        <svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2.2-.4 3.1-1.2l3.17-3.17a8 8 0 0 0-1.42-4.39A5.987 5.987 0 0 0 12 6.75a5.986 5.986 0 0 0-3.07 1.05A8 8 0 0 0 4 12c0 4.42 3.58 8 8 8z"/></svg>
+        Payments
       </div>
-    </footer>
+      <div class="bottom-nav-item" onclick="navigate('notifications')">
+        <svg width="24" height="24" viewBox="0 0 24 24"><path d="M13.87 5.09a2 2 0 0 0-2.72 0L5 13v6h2v-6zm0 5.5a3.5 3.5 0 1 1 0 7L5 22.5"/></svg>
+        Notifications
+      </div>
+    </bottom-nav>
   </div>
+
+  <script>
+    // Role state
+    let currentRole = null;
+    let currentProjectId = 'proj1';
+    
+    // Set the user's role and load appropriate UI
+    function setRole(role) {
+      currentRole = role;
+      
+      // Update top bar
+      const userName = document.getElementById('userName');
+      const stellarTag = document.querySelector('.stellar-testnet-tag');
+      const topBar = document.getElementById('topBar');
+      const sidebar = document.getElementById('sidebar');
+      const bottomNav = document.getElementById('bottomNav');
+      const mainContent = document.getElementById('mainContent');
+      const sidebarNav = document.getElementById('sidebarNav');
+      
+      // Remove old sidebar classes
+      sidebar.className = 'sidebar';
+      
+      // Add role-specific sidebar class
+      sidebar.classList.add(role);
+      
+      // Update bottom nav classes
+      bottomNav.className = `bottom-nav ${role}`;
+      
+      // Update sidebar links (simplified - would be populated from backend)
+      const links = sidebarNav.querySelectorAll('.sidebar-nav-link');
+      links.forEach((link, index) => {
+        // Show/hide based on role would be done dynamically
+        link.style.display = 'block';
+      });
+      
+      // Update project name
+      const projectName = document.getElementById('projectName');
+      projectName.textContent = getProjectName(role);
+      
+      // Show main content, hide welcome screen
+      mainContent.style.display = 'block';
+      document.querySelector('.welcome-screen').style.display = 'none';
+      
+      // Hide route guard message
+      const guardMsg = document.getElementById('routeGuardMsg');
+      guardMsg.style.display = 'none';
+      
+      // In a real app, would make API call to get session/role
+      // For now, just update UI
+    }
+    
+    function getProjectName(role) {
+      const names = {
+        contractor: 'Lagos Wedding Decoration',
+        worker: 'Lagos Wedding Decoration',
+        client: 'Lagos Wedding Decoration'
+      };
+      return names[role] || 'PayShare Project';
+    }
+    
+    function navigate(page) {
+      // Navigate to different page sections
+      console.log(`Navigating to: ${page}`);
+      // Would make API call or update view
+    }
+    
+    // Initialize on load - check for existing session
+    document.addEventListener('DOMContentLoaded', () => {
+      // Check if user already has a role set (from session)
+      const savedRole = localStorage.getItem('payshare_role');
+      if (savedRole) {
+        setRole(savedRole);
+      } else {
+        // Show welcome screen - let user select role
+        document.querySelector('.welcome-screen').style.display = 'block';
+        document.getElementById('mainContent').style.display = 'none';
+      }
+    });
+  </script>
 </body>
 </html>
