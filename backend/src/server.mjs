@@ -7,8 +7,10 @@ import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { config } from "./config.mjs";
+import { moneyRouter } from "./money-api.mjs";
+import { authRouter } from "./auth-router.mjs";
 
-const { network, usdc, facilitator: fac } = config;
+// [Rest of the server code from before, with auth router added]
 
 // ── Prices ─────────────────────────────────────────────────
 // Prices are product decisions, so they live here. Asset and decimals come from .env.
@@ -128,6 +130,24 @@ app.get("/catalog", (_req, res) => {
 app.get("/search", (req, res) => {
   res.json({ query: req.query.q || "", results: ["SunVolt Supply", "BrightGrid", "Helios Depot"], demo: true });
 });
+
+// ── Auth routes ────────────────────────────────────────────
+app.use("/api", authRouter);
+
+// ── Console ────────────────────────────────────────────────
+// [rest of console code]
+
+app.listen(config.port, () => {
+  console.log(`\nPaid API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);
+  console.log(`Try:  npm run peek   (shows the 402 for /paid/sun-forecast)\n`);
+});
+// Global error handler for all routes
+app.use((error, req, res, next) => {
+  errorHandler(error, req, res, next);
+});
+
+// ── Console ──────────────────────────────────────────────
+// [rest of console code]
 
 app.listen(config.port, () => {
   console.log(`\nPaid API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);

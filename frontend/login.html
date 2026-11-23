@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayShare - Log in</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="max-w-1440 mx-auto" style="min-height: 100vh;">
+    <!-- Auth two-column layout -->
+    <div class="grid lg:grid-cols-12 gap-8 py-8">
+      
+      <!-- Left navy panel -->
+      <div class="lg:col-span-5 bg-[var(--color-brand-deep-navy)] text-[var(--color-neutral-on-dark)] p-8">
+        <div class="text-center mb-8">
+          <div class="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style="background: var(--color-brand-teal);">
+            <span class="text-xl font-bold" style="color: var(--color-neutral-white);">PS</span>
+          </div>
+          <h2 class="text-2xl font-bold mb-2">Welcome back.</h2>
+          <p class="text-lg">Your projects, tasks and payments in one place.</p>
+        </div>
+
+        <p class="text-sm text-[rgba(255,255,255,0.6)] mb-6">Enter your email or WhatsApp number to continue.</p>
+
+        <div class="mb-6">
+          <input type="email" class="input w-full mb-3" 
+                 aria-label="Email or WhatsApp number"
+                 style="background: rgba(255,255,255,0.1); color: var(--color-neutral-on-dark);">
+          <button class="btn btn-sm btn-primary w-full">Log in</button>
+        </div>
+
+        <div>
+          <button class="btn btn-link text-sm text-[var(--color-brand-teal)] block text-left">Forgot password?</button>
+        </div>
+
+        <div class="mt-8 pt-8 border-t" style="border-color: rgba(255,255,255,0.2);">
+          <p class="text-sm text-[rgba(255,255,255,0.5)]">© 2026 PayShare - USDC on Stellar</p>
+        </div>
+      </div>
+
+      <!-- Right white panel with form -->
+      <div class="lg:col-span-7 bg-[var(--color-neutral-white)] p-8 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold mb-4">Log in</h2>
+
+        <p class="text-text-secondary mb-4">Good to see you again.</p>
+
+        <form>
+          <!-- Email/WhatsApp input -->
+          <div>
+            <label class="label" for="email">Email or WhatsApp number</label>
+            <input type="email" id="email" class="input input-with-icon" 
+                   placeholder="name@email.com or +1 555-123-4567"
+                   aria-label="Email or WhatsApp number">
+            <span class="input-icon">📧</span>
+          </div>
+
+          <!-- Remember me -->
+          <div class="checkbox mb-4">
+            <input type="checkbox" id="remember" class="checkbox-input" checked>
+            <span class="checkbox-label">Remember me</span>
+          </div>
+
+          <!-- Forgot password link -->
+          <p class="text-sm mb-4 hover:underline" style="color: var(--color-brand-teal);">
+            Forgot password?
+          </p>
+
+          <!-- Divider "or" -->
+          <div class="divider mb-4"></div>
+
+          <!-- New account link -->
+          <p class="text-sm text-text-secondary">
+            New to PayShare? <a href="signup.html" class="font-medium hover:underline">Create an account</a>
+          </p>
+
+          <button type="submit" class="btn btn-primary w-full">Log in</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

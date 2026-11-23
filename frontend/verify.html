@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayShare - Verify account</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="max-w-1440 mx-auto" style="min-height: 100vh;">
+    <!-- Auth layout -->
+    <div class="grid lg:grid-cols-12 gap-8 py-8">
+      
+      <!-- Left navy panel -->
+      <div class="lg:col-span-5 bg-[var(--color-brand-deep-navy)] text-[var(--color-neutral-on-dark)] p-8">
+        <div class="text-center mb-8">
+          <div class="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style="background: var(--color-brand-teal);">
+            <span class="text-xl font-bold" style="color: var(--color-neutral-white);">PS</span>
+          </div>
+          <h2 class="text-2xl font-bold mb-2">One quick check.</h2>
+          <p class="text-lg">This keeps your payments safe.</p>
+        </div>
+
+        <p class="text-sm text-[rgba(255,255,255,0.6)] mb-6">We sent a 6-digit code to your email. Enter it below to verify your account.</p>
+
+        <div class="mb-4">
+          <p class="text-xs text-[rgba(255,255,255,0.5)]" id="resend-timer">Didn't get it? Resend in <span id="resend-count">42</span> seconds</p>
+          <a href="#" id="resend-link" style="color: var(--color-brand-teal);">Or get the code on WhatsApp instead</a>
+        </div>
+
+        <form>
+          <div class="space-y-3">
+            <!-- Six single-digit code boxes -->
+            <div class="flex gap-2">
+              <input type="text" maxlength="1" class="code-box w-16 h-12 text-center font-bold text-lg border border-[var(--color-input-border)] rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-teal)]" aria-label="Code digit 1">
+              <input type="text" maxlength="1" class="code-box w-16 h-12 text-center font-bold text-lg border border-[var(--color-input-border)] rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-teal)]" aria-label="Code digit 2">
+              <input type="text" maxlength="1" class="code-box w-16 h-12 text-center font-bold text-lg border border-[var(--color-input-border)] rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-teal)]" aria-label="Code digit 3">
+              <input type="text" maxlength="1" class="code-box w-16 h-12 text-center font-bold text-lg border border-[var(--color-input-border)] rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-teal)]" aria-label="Code digit 4">
+              <input type="text" maxlength="1" class="code-box w-16 h-12 text-center font-bold text-lg border border-[var(--color-input-border)] rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-teal)]" aria-label="Code digit 5">
+              <input type="text" maxlength="1" class="code-box w-16 h-12 text-center font-bold text-lg border border-[var(--color-input-border)] rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-teal)]" aria-label="Code digit 6">
+            </div>
+          </div>
+
+          <button type="submit" class="btn w-full mt-4">Verify code</button>
+        </form>
+
+        <p class="text-sm mt-4 text-text-secondary">
+          Didn't receive the code? <a href="#" id="resend-again">Resend code</a>
+        </p>
+
+        <div class="alert alert--success hidden" id="success-alert" style="margin-top: var(--space-lg);">
+          <span class="alert-icon"></span>
+          <span class="alert-message">Account verified successfully</span>
+        </div>
+
+        <div class="alert alert--error hidden" id="error-alert" style="margin-top: var(--space-lg);">
+          <span class="alert-icon"></span>
+          <span class="alert-message">Verification code incorrect</span>
+        </div>
+      </div>
+
+      <!-- Right white panel with additional info -->
+      <div class="lg:col-span-7 bg-[var(--color-neutral-white)] p-8 rounded-lg shadow-md">
+        <h2 class="text-xl font-bold mb-4">This keeps your payments safe.</h2>
+
+        <p class="text-text-secondary mb-4">Verifying your account ensures that only you can access and manage the project funds.</p>
+
+        <div class="p-6 bg-[rgba(16,185,129,0.1)] rounded-lg mb-6">
+          <p class="text-sm text-text-success">✓ Your payments are secure</p>
+          <p class="text-xs text-text-muted">Only verified users can receive payments</p>
+        </div>
+
+        <p class="text-sm text-text-secondary">
+          By continuing, you agree to the <a href="#" style="color: var(--color-brand-teal);">Terms of Service</a> and <a href="#" style="color: var(--color-brand-teal);">Privacy Policy</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Code verification
+    const form = document.querySelector('form');
+    const codeBoxes = document.querySelectorAll('.code-box');
+    const successAlert = document.getElementById('success-alert');
+    const errorAlert = document.getElementById('error-alert');
+    const resendTimer = document.getElementById('resend-timer');
+    const resendLink = document.getElementById('resend-link');
+    const resendAgain = document.getElementById('resend-again');
+
+    // Focus management for code boxes
+    codeBoxes.forEach((box, index) => {
+      box.addEventListener('input', (e) => {
+        // Move to next box if not last
+        if (e.target.value.length && index < codeBoxes.length - 1) {
+          codeBoxes[index + 1].focus();
+        }
+        // If last box has value, try verification
+        if (index === codeBoxes.length - 1 && e.target.value.length) {
+          const code = Array.from(codeBoxes).map(b => b.value).join('');
+          verifyCode(code);
+        }
+      });
+
+      // Handle backspace
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value && index > 0) {
+          codeBoxes[index - 1].focus();
+        }
+      });
+    });
+
+    // Auto-focus first box
+    codeBoxes[0].focus();
+
+    function verifyCode(code) {
+      // Simulate successful verification
+      successAlert.classList.remove('hidden');
+      errorAlert.classList.add('hidden');
+      
+      // Hide code boxes, show success
+      form.style.display = 'none';
+      setTimeout(() => {
+        // In real app, would redirect to dashboard
+        window.location.href = '/';
+      }, 1500);
+    }
+
+    // Resend timer logic
+    let resendTime = 42;
+    const resendInterval = setInterval(() => {
+      resendTime--;
+      resendTimer.textContent = resendTime;
+      if (resendTime <= 0) {
+        clearInterval(resendInterval);
+        resendTimer.textContent = '42';
+        resendLink.style.display = 'none';
+        resendAgain.style.display = 'inline';
+      }
+    }, 1000);
+
+    // Resend link click
+    resendLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      // Reset timer
+      resendTime = 42;
+      resendTimer.textContent = resendTime;
+      resendLink.style.display = 'none';
+      resendAgain.style.display = 'inline';
+    });
+
+    resendAgain.addEventListener('click', (e) => {
+      e.preventDefault();
+      resetTimer();
+    });
+
+    function resetTimer() {
+      resendTime = 42;
+      resendTimer.textContent = resendTime;
+      if (resendInterval) clearInterval(resendInterval);
+      resendInterval = setInterval(() => {
+        resendTime--;
+        resendTimer.textContent = resendTime;
+        if (resendTime <= 0) {
+          clearInterval(resendInterval);
+          resendTimer.textContent = '42';
+          resendLink.style.display = 'inline';
+          resendAgain.style.display = 'none';
+        }
+      }, 1000);
+    }
+  </script>
+</body>
+</html>

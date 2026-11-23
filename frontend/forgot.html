@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayShare - Reset your password</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="max-w-1440 mx-auto" style="min-height: 100vh;">
+    <!-- Auth layout -->
+    <div class="grid lg:grid-cols-12 gap-8 py-8">
+      
+      <!-- Left navy panel -->
+      <div class="lg:col-span-5 bg-[var(--color-brand-deep-navy)] text-[var(--color-neutral-on-dark)] p-8">
+        <div class="text-center mb-8">
+          <div class="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style="background: var(--color-brand-teal);">
+            <span class="text-xl font-bold" style="color: var(--color-neutral-white);">PS</span>
+          </div>
+          <h2 class="text-2xl font-bold mb-2">It happens to everyone.</h2>
+          <p class="text-lg">We'll help you back in.</p>
+        </div>
+
+        <p class="text-sm text-[rgba(255,255,255,0.6)] mb-6">Enter your email or WhatsApp number to send a reset link or code.</p>
+
+        <form>
+          <div>
+            <label class="label" for="email">Email or WhatsApp</label>
+            <input type="email" class="input input-with-icon" 
+                   placeholder="name@email.com or +1 555-123-4567"
+                   aria-label="Email or WhatsApp">
+            <span class="input-icon">📧</span>
+          </form>
+        </div>
+
+        <button class="btn w-full mt-4" style="background: var(--color-brand-teal); color: var(--color-neutral-white);">Send reset link</button>
+
+        <p class="text-sm text-[rgba(255,255,255,0.5)] mt-6">© 2026 PayShare - USDC on Stellar</p>
+      </div>
+
+      <!-- Right white panel -->
+      <div class="lg:col-span-7 bg-[var(--color-neutral-white)] p-8 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold mb-4">We'll help you back in.</h2>
+
+        <p class="text-text-secondary mb-4">We'll send a reset link to your email or a code to your WhatsApp.</p>
+
+        <form>
+          <div>
+            <label class="label" for="contact">Email or WhatsApp</label>
+            <input type="email" id="contact" class="input input-with-icon" 
+                   placeholder="name@email.com or +1 555-123-4567"
+                   aria-label="Email or WhatsApp">
+            <span class="input-icon">📧</span>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-full mt-4">Send code</button>
+        </form>
+
+        <div class="alert alert--success hidden" id="success-alert">
+          <span class="alert-icon"></span>
+          <span class="alert-message">Reset link sent successfully</span>
+        </div>
+
+        <div class="alert alert--error hidden" id="error-alert">
+          <span class="alert-icon"></span>
+          <span class="alert-message">Error sending reset request</span>
+        </div>
+
+        <p class="text-sm mt-4 text-text-secondary" id="back-link">
+          <a href="login.html" style="color: var(--color-brand-teal);">Go to log in</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Simulate form submission
+    const form = document.querySelector('form');
+    const successAlert = document.getElementById('success-alert');
+    const errorAlert = document.getElementById('error-alert');
+    const backLink = document.getElementById('back-link');
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      // Show success state
+      successAlert.classList.remove('hidden');
+      errorAlert.classList.add('hidden');
+      
+      // Reset form after 3 seconds
+      setTimeout(() => {
+        successAlert.classList.add('hidden');
+        form.reset();
+      }, 3000);
+    });
+  </script>
+</body>
+</html>

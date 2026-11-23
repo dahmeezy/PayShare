@@ -59,3 +59,22 @@ Every assumption made and every decision not covered by this prompt, especially:
 - **Decision needed**: Can a contractor delegate task approval to a client? Can a worker's Stellar address be updated by the contractor, or must the worker do it themselves? Are there any admin/super-user roles beyond contractor, client, and worker?
 
 # End of OPEN_QUESTIONS.md
+## 13. Authentication system design
+- **User registration**: Email or WhatsApp number with password. Passwords hashed with PBKDF2, never logged.
+- **Login**: Email/WhitsApp + password. Rate limiting: 5 attempts per 15 minutes per IP. Session provides user id and role on every request (H5 handoff).
+- **Forgot password**: Request sent by email or WhatsApp. 6-digit code with 15-minute expiration. Resend timer: 42 seconds.
+- **Verify account**: 6-digit code entered in six single-digit boxes. Code expires after 15 minutes.
+- **Rate limiting**: Login: 5 attempts/15min, Forgot: 3 attempts/15min, Verify: 5 attempts/15min.
+- **Password security**: Minimum 6 characters, PBKDF2 with 10 salt rounds. Passwords never logged in server output.
+- **Error format**: Consistent JSON error format from API. No stack traces leaked to clients.
+- **Handoff (H5)**: Auth provides user id and role on every request via headers. Until full implementation, `X-User-Id` and `X-Role` headers used.
+
+## 14. Frontend-auth backend connection
+- Frontend screens (landing, sign up, log in, forgot password, verify account) built with plain HTML/CSS/Vanilla JS
+- Screens use design tokens from A02 for consistency
+- Form validation on client and server
+- Error states shown in every form
+- Loading states shown during async operations
+- Responsive at 1440, 1024, 390, 360 widths
+- Both light and dark theme support via CSS variables
+
