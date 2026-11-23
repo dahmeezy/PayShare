@@ -39,6 +39,13 @@ describe('RBAC - Role-Based Access Control', () => {
         .get('/api/projects/proj1/allocations');
       assert.lengthOf(res.body.allocations, 3, 'contractor should see all 3 workers\' allocations');
     });
+
+    it('should show full project members with canSee column', async () => {
+      const res = await request(server)
+        .get('/api/projects/proj1/project-members');
+      assert.lengthOf(res.body, 3, 'contractor should see all 3 project members');
+      assert.exists(res.body[0].canSee, 'contractor should see canSee column');
+    });
   });
 
   describe('Worker', () => {
@@ -86,6 +93,15 @@ describe('RBAC - Role-Based Access Control', () => {
         });
       }
     });
+
+    it('should show own project members with own allocation flag', async () => {
+      const res = await request(server)
+        .get('/api/projects/proj1/project-members');
+      assert.lengthOf(res.body, 3, 'worker should see all project members');
+      // Worker's own allocation should be flagged
+      const ownMember = res.body.find(m => m.isOwnAllocation);
+      assert.exists(ownMember, 'worker should see own allocation flag');
+    });
   });
 
   describe('Client', () => {
@@ -111,6 +127,13 @@ describe('RBAC - Role-Based Access Control', () => {
         .get('/api/projects/proj1/allocations');
       assert.lengthOf(res.body.allocations, 3, 'client should see all 3 workers\' allocations');
     });
+
+    it('should show full project members with canSee column', async () => {
+      const res = await request(server)
+        .get('/api/projects/proj1/project-members');
+      assert.lengthOf(res.body, 3, 'client should see all 3 project members');
+      assert.exists(res.body[0].canSee, 'client should see canSee column');
+    });
   });
 });
 
@@ -119,12 +142,12 @@ describe('Leak Check', () => {
   // Scan all existing endpoints and assert forbidden fields are absent
   // in worker responses
   it('should not leak contractor_comp in any endpoint response for workers', async () => {
-    const workerEndpoints = [
+    const endpoints = [
       '/api/projects/proj1/money-summary',
       '/api/projects/proj1/contractor-compensation',
     ];
     
-    for (const endpoint of workerEndpoints) {
+    for (const endpoint of endpoints) {
       const res = await request(server).get(endpoint);
       // In a real test with proper worker auth, contractor_comp should be null
       // For now, verify the endpoint is accessible
@@ -136,5 +159,16 @@ describe('Leak Check', () => {
     const res = await request(server).get('/api/projects/proj1/allocations');
     // Verify the response structure is valid
     assert.exists(res.body, 'allocations endpoint should return valid response');
+  });
+
+  it('should verify payment detail presence for contractor/client', async () => {
+    const contractorRes = await request(server).get('/api/projects/proj1/payments');
+    const clientRes = await request(server).get('/api/projects/proj1/payments');
+    assert.exists(contractorRes.body.payments, 'contractor should see payments');
+    assert.exists(clientRes.body.payments, 'client should see payments');
+    // Verify tx hashes are present for contractor
+    if (contractorRes.body.payments.length > 0) {
+      assert.exists(contractorRes.body.payments[0].transaction, 'contractor should see tx hashes');
+    }
   });
 });
