@@ -1,0 +1,4 @@
+# Every change needs review from a code owner (enforced by the branch ruleset).
+* @maryam001-codes @dahmeezy
+/.github/ @maryam001-codes
+/.githooks/ @maryam001-codes
