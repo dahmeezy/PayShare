@@ -489,6 +489,13 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
           normalized === "d06" || normalized === "md05" ? data.confirmations[0] :
           normalized === "c24" || normalized === "mc09" ? data.ready[0] : null) || data.selectedTasks[0];
         startError = "";
+        // A worker must accept the agreed terms before working: unaccepted tasks open the accept screen.
+        const pending = data.task;
+        if (user.role === "worker" && pending && pending.acceptedAt === null && !pending.declinedAt && pending.status === "assigned"
+          && ["w04", "mw03"].includes(normalized)) {
+          go(normalized === "mw03" ? "mw05" : "w03", pending.project, pending);
+          return;
+        }
       } catch (error) {
         if (!isCurrent()) return;
         data = context([]);
