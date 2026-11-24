@@ -16,3 +16,5 @@ payshare-state.json
 
 # PayShare local state
 payshare-state.json*
+users.json*
+payshare-workspace.json*
