@@ -17,6 +17,7 @@ async function setup(t) {
   process.env.PAYSHARE_WORKSPACE_FILE = files.workspace;
   process.env.PAYSHARE_USERS_FILE = files.users;
   process.env.PAYSHARE_SECURE_COOKIES = "false";
+  process.env.PAYSHARE_RATE_LIMIT_MULTIPLIER = "10";
   t.after(() => rm(dir, { recursive: true, force: true }));
   const store = await import("../src/workspace-store.mjs");
   await store.initializeWorkspace();
@@ -39,10 +40,10 @@ async function invitation(author, guest, base, role, decision = "accept") {
   await guest.agent.post(prefix + "/invitations/respond").send({ token, decision }).expect(404);
 }
 
-async function team(app, mode, addresses = {}) {
-  const client = await account(app, "Client", "client", addresses.client);
-  const contractor = await account(app, "Contractor", "contractor");
-  const worker = await account(app, "Worker", "worker", addresses.worker);
+async function team(app, mode, addresses = {}, tag = "") {
+  const client = await account(app, "Client" + tag, "client", addresses.client);
+  const contractor = await account(app, "Contractor" + tag, "contractor");
+  const worker = await account(app, "Worker" + tag, "worker", addresses.worker);
   const { body: project } = await client.agent.post(prefix + "/projects").send({ name: "Launch", budget: 10000, mode }).expect(201);
   const base = prefix + "/projects/" + project.id;
   await invitation(client, contractor, base, "contractor");
@@ -57,6 +58,8 @@ async function assign(team, amount = 1200, title = "Build stage", worker = team.
   return team.base + "/tasks/" + body.id;
 }
 async function approve(team, task) {
+  const response = await team.worker.agent.post(task + "/accept").send({});
+  assert.ok([200, 409].includes(response.status));
   await team.worker.agent.post(task + "/submission").send({ notes: "Ready to review" }).expect(200);
   await team.contractor.agent.post(task + "/review").send({ decision: "approved" }).expect(200);
 }
@@ -94,9 +97,15 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     assert.equal(workerProjects[0].funding, undefined);
     await other.agent.post(task + "/submission").send({ notes: "Unauthorized" }).expect(404);
     await contractor.agent.post(task + "/payout").send({}).expect(409);
-    await worker.agent.post(task + "/submission").send({ notes: "First try" }).expect(200);
+    await worker.agent.post(task + "/submission").send({ notes: "Too early" }).expect(409);
+    await other.agent.post(task + "/accept").send({}).expect(404);
+    await worker.agent.post(task + "/accept").send({}).expect(200);
+    await worker.agent.post(task + "/accept").send({}).expect(409);
+    await worker.agent.post(task + "/submission").send({ notes: "First try", links: ["javascript:alert(1)"] }).expect(400);
+    await worker.agent.post(task + "/submission").send({ notes: "First try", links: ["https://example.test/a"] }).expect(200);
     await worker.agent.post(task + "/submission").send({ notes: "Duplicate" }).expect(409);
-    await contractor.agent.post(task + "/review").send({ decision: "rejected" }).expect(200);
+    await contractor.agent.post(task + "/review").send({ decision: "rejected" }).expect(400);
+    await contractor.agent.post(task + "/review").send({ decision: "rejected", notes: "Add the side panels" }).expect(200);
     await contractor.agent.post(task + "/payout").send({}).expect(409);
     await approve(group, task);
     await contractor.agent.post(task + "/payout").send({}).expect(409);
@@ -274,5 +283,32 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     await contractor.agent.post(second + "/reconcile").send({}).expect(409);
     assert.equal((await projectData()).tasks[1].payout.status, "failed");
     assert.equal((await projectData()).tasks[1].payout.transaction, undefined);
+  });
+  await t.test("tasks carry agreed terms, the worker accepts or declines them, and submissions keep versions", async () => {
+    const group = await team(app, "preview", {}, "Terms");
+    const { client, contractor, worker, base } = group;
+    await client.agent.post(base + "/funding").send({ amount: 10000 }).expect(200);
+    const terms = { title: "Backdrop", description: "Build it", workerId: worker.user.id, allocation: 1200,
+      criteria: "Matches the mood board", deadline: "2030-01-31", deliverables: ["Photos", "Invoice"], reassignable: true };
+    await contractor.agent.post(base + "/tasks").send({ ...terms, deadline: "soon" }).expect(400);
+    await contractor.agent.post(base + "/tasks").send({ ...terms, deliverables: "Photos" }).expect(400);
+    const { body } = await contractor.agent.post(base + "/tasks").send(terms).expect(200);
+    const task = base + "/tasks/" + body.id;
+    const seen = (await worker.agent.get(prefix + "/projects").expect(200)).body[0].tasks[0];
+    assert.deepEqual([seen.criteria, seen.deadline, seen.deliverables, seen.reassignable, seen.acceptedAt], ["Matches the mood board", "2030-01-31", ["Photos", "Invoice"], true, null]);
+    await contractor.agent.post(task + "/accept").send({}).expect(403);
+    await worker.agent.post(task + "/accept").send({ decision: "maybe" }).expect(400);
+    await worker.agent.post(task + "/accept").send({}).expect(200);
+    await worker.agent.post(task + "/submission").send({ notes: "v1" }).expect(200);
+    await contractor.agent.post(task + "/review").send({ decision: "rejected", notes: "Needs edges" }).expect(200);
+    await worker.agent.post(task + "/submission").send({ notes: "v2", links: ["https://example.test/v2"] }).expect(200);
+    const versions = (await worker.agent.get(prefix + "/projects").expect(200)).body[0].tasks[0].submissions;
+    assert.deepEqual(versions.map(v => v.version), [1, 2]);
+
+    const { body: second } = await contractor.agent.post(base + "/tasks").send({ ...terms, title: "Flowers" }).expect(200);
+    await worker.agent.post(base + "/tasks/" + second.id + "/accept").send({ decision: "decline", reason: "Busy" }).expect(200);
+    const declined = (await worker.agent.get(prefix + "/projects").expect(200)).body[0].tasks.find(entry => entry.title === "Flowers");
+    assert.equal(declined.status, "declined");
+    await worker.agent.post(base + "/tasks/" + second.id + "/submission").send({ notes: "x" }).expect(409);
   });
 });

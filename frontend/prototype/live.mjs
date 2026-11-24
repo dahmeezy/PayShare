@@ -672,10 +672,18 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
         go("c29", project, payout);
         return project.mode === "preview" ? "Simulated payout. No funds moved." : "Stellar payment verified.";
       });
-      if (["w03", "mw05"].includes(route) && /^accept/.test(label)) {
+      if (["w03", "mw05"].includes(route) && /^accept/.test(label)) return run(async () => {
+        if (!taskPath) throw new Error("Choose a task first.");
+        await api(taskPath + "/accept", "POST", { decision: "accept" });
         go("w04", project, task);
-        return true;
-      }
+        return "Task and agreed payment accepted.";
+      }, true);
+      if (["w03", "mw05"].includes(route) && /^(decline|reject)/.test(label)) return run(async () => {
+        if (!taskPath) throw new Error("Choose a task first.");
+        await api(taskPath + "/accept", "POST", { decision: "decline", reason: value("Reason") || undefined });
+        home();
+        return "Task declined.";
+      }, true);
       if (["Tab", "Chip"].includes(authoredLayer) && (routeGroups.tasks.has(route) || routeGroups.payments.has(route) || ["c15","mc06"].includes(route))) {
         filter = label;
         render();

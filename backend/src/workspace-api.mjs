@@ -25,6 +25,19 @@ function amount(value, minimum = 1) {
   return value;
 }
 
+function date(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(value) || Number.isNaN(Date.parse(value))) throw projectError("Enter a valid deadline date");
+  return value.slice(0, 10);
+}
+// One or many deliverables; none is allowed. Tasks never have mandatory stages.
+function deliverableList(value) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 20) throw projectError("Enter up to 20 deliverables");
+  return value.map(item => text(item, "deliverable", 200));
+}
+// Tasks created before acceptance existed (no acceptedAt key) count as accepted.
+const accepted = task => task.acceptedAt !== null;
+
 function membership(project, userId) {
   return project.members.find(member => member.id === userId)?.role;
 }
@@ -47,6 +60,8 @@ function publicProject(project, user) {
     return {
       id: task.id, title: task.title, description: task.description, workerId: task.workerId,
       workerName: task.workerName, amount: task.amount, status: task.status, submission: task.submission,
+      criteria: task.criteria, deadline: task.deadline, deliverables: task.deliverables, reassignable: task.reassignable,
+      acceptedAt: task.acceptedAt ?? null, declinedAt: task.declinedAt, submissions: task.submissions ?? (task.submission ? [task.submission] : []),
       clientApprovalRequired: task.clientApprovalRequired, clientApprovedAt: task.clientApprovedAt,
       review: task.review, payout: {
         status, paidAt, error, ...(role === "contractor" && { canReconcile: !!candidateTx }),
@@ -183,8 +198,9 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
   }));
 
   router.post(projectPath + "/tasks", mutate(["contractor"], (project, req) => {
-    const { workerId, title, description, allocation, clientApprovalRequired = false } = req.body ?? {};
+    const { workerId, title, description, allocation, clientApprovalRequired = false, criteria, deadline, deliverables, reassignable = false } = req.body ?? {};
     if (typeof clientApprovalRequired !== "boolean") throw projectError("Choose whether client confirmation is required");
+    if (typeof reassignable !== "boolean") throw projectError("Choose whether the task can be reassigned");
     const member = project.members.find(entry => entry.id === workerId && entry.role === "worker");
     if (!member) throw projectError("Choose a worker who accepted the invitation");
     const recipient = getUserById(member.id)?.stellar_address || null;
@@ -194,6 +210,10 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
     const task = {
       id: randomUUID(), title: text(title, "task title"), description: text(description, "task description", 1000),
       workerId, workerName: member.name, recipient, amount: amount(allocation),
+      criteria: criteria ? text(criteria, "acceptance criteria", 1000) : "",
+      deadline: deadline ? date(deadline) : null,
+      deliverables: deliverableList(deliverables),
+      reassignable, acceptedAt: null,
       status: "assigned", clientApprovalRequired, payout: { status: "pending" },
     };
     project.tasks.push(task);
@@ -202,20 +222,45 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
   }));
 
   const taskPath = projectPath + "/tasks/:taskId";
+  // The worker must accept the task and its agreed payment before work starts.
+  router.post(taskPath + "/accept", mutate(["worker"], (project, req) => {
+    const task = taskFor(project, req.params.taskId);
+    if (task.workerId !== req.user.id) throw projectError("Task not found", 404);
+    const decision = req.body?.decision ?? "accept";
+    if (!["accept", "decline"].includes(decision)) throw projectError("Choose whether to accept or decline");
+    if (task.acceptedAt !== null || task.status !== "assigned") throw projectError("This task is no longer awaiting your response", 409);
+    if (decision === "decline") {
+      task.status = "declined";
+      task.declinedAt = now();
+      task.declineReason = req.body?.reason ? text(req.body.reason, "reason", 500) : "";
+      return { status: task.status };
+    }
+    task.acceptedAt = now();
+    task.acceptedAmount = task.amount;
+    return { status: task.status, acceptedAt: task.acceptedAt, amount: task.amount };
+  }));
   router.post(taskPath + "/submission", mutate(["worker"], (project, req) => {
     const task = taskFor(project, req.params.taskId);
     if (task.workerId !== req.user.id) throw projectError("Task not found", 404);
+    if (!accepted(task)) throw projectError("Accept the task and its agreed payment before submitting work", 409);
     if (!["assigned", "rejected"].includes(task.status)) throw projectError("This task is already submitted or approved", 409);
-    task.submission = { notes: text(req.body?.notes, "submission notes", 2000), submittedAt: now() };
+    const links = req.body?.links === undefined ? [] : req.body.links;
+    if (!Array.isArray(links) || links.length > 10 || links.some(link => typeof link !== "string" || !/^https?:\/\/\S{1,500}$/.test(link))) {
+      throw projectError("Enter up to 10 web links that start with http:// or https://");
+    }
+    const entry = { version: (task.submissions?.length ?? 0) + 1, notes: text(req.body?.notes, "submission notes", 2000), links, submittedAt: now() };
+    task.submissions = [...(task.submissions ?? []), entry];
+    task.submission = entry;
     task.status = "submitted";
-    return { status: task.status };
+    return { status: task.status, version: entry.version };
   }));
   router.post(taskPath + "/review", mutate(["contractor"], (project, req) => {
     const task = taskFor(project, req.params.taskId);
     if (task.status !== "submitted") throw projectError("Only submitted work can be reviewed", 409);
     const { decision, notes } = req.body ?? {};
     if (!["approved", "rejected"].includes(decision)) throw projectError("Choose approve or reject");
-    task.review = { notes: notes ? text(notes, "review notes", 1000) : "", reviewedAt: now() };
+    if (decision === "rejected" && !notes) throw projectError("Explain what needs to change");
+    task.review = { notes: notes ? text(notes, "review notes", 1000) : "", reviewedAt: now(), version: task.submission?.version ?? 1 };
     task.status = decision;
     return { status: task.status };
   }));
