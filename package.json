@@ -1,0 +1,12 @@
+{
+  "name": "payshare",
+  "private": true,
+  "description": "Deploy wrapper: installs and starts the PayShare backend, which also serves ./frontend",
+  "scripts": {
+    "build": "npm ci --prefix backend",
+    "start": "cd backend && node scripts/init-workspace.mjs && node src/server.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

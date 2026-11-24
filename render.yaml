@@ -4,8 +4,8 @@ services:
     runtime: node
     plan: starter # persistent disk requires a paid plan; free would lose all data on every deploy
     # deploys from the repo root: the server also serves ../frontend
-    buildCommand: cd backend && npm ci
-    startCommand: cd backend && node scripts/init-workspace.mjs && node src/server.mjs
+    buildCommand: npm run build
+    startCommand: npm start
     healthCheckPath: /catalog
     disk:
       name: payshare-data
