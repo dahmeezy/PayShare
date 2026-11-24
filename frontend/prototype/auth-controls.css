@@ -1,0 +1,37 @@
+.password-toggle {
+  display: inline-grid;
+  place-items: center;
+  position: relative;
+  flex: 0 0 44px;
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.password-toggle img { display: block; }
+.password-toggle[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  inline-size: 20px;
+  block-size: 2px;
+  background: currentColor;
+  transform: rotate(-42deg);
+}
+.password-toggle:focus-visible { outline: 2px solid #159a83; outline-offset: -3px; }
+.password-field { display: flex !important; align-items: center; }
+.password-field input { flex: 1; min-inline-size: 0; }
+.auth-feedback { color: inherit; font-size: .875rem; }
+.auth-feedback:empty { display: none; }
+.auth-demo-note { font-size: .875rem; }
+.code-grid {
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  align-items: stretch;
+}
+.code-grid > * { min-width: 0; }

@@ -7,19 +7,20 @@
   <title>PayShare prototype</title>
   <link rel="stylesheet" href="ui/tokens.css">
   <link rel="stylesheet" href="ui/components/button.css">
+  <link rel="stylesheet" href="prototype/auth-controls.css">
   <link rel="stylesheet" href="prototype/prototype.css">
   <link rel="stylesheet" href="prototype/layout.css">
   <script type="module" src="prototype/app.mjs"></script>
 </head>
 <body>
   <a class="skip" href="#screen">Skip to content</a>
-  <main id="screen" tabindex="-1" aria-busy="true">
-    <p class="screen-message">Loading PayShare…</p>
-  </main>
   <aside id="demo" aria-label="Demo controls">
     <span>Demo · Sample data</span>
     <button type="button" class="btn btn-sm" id="explore">Explore screens</button>
   </aside>
+  <main id="screen" tabindex="-1" aria-busy="true">
+    <p class="screen-message">Loading PayShare…</p>
+  </main>
   <dialog id="catalog" aria-labelledby="catalog-title">
     <header>
       <h2 id="catalog-title">Explore PayShare</h2>

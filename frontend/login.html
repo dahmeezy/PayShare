@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayShare - Log in</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="prototype/auth-controls.css">
 </head>
 <body>
   <div class="max-w-1440 mx-auto" style="min-height: 100vh;">
@@ -45,16 +46,21 @@
 
         <p class="text-text-secondary mb-4">Good to see you again.</p>
 
+        <p class="auth-demo-note">Demo only. Use sample values.</p>
         <form>
           <!-- Email/WhatsApp input -->
           <div>
             <label class="label" for="email">Email or WhatsApp number</label>
-            <input type="email" id="email" class="input input-with-icon" 
+            <input type="text" id="email" data-contact required class="input input-with-icon"
                    placeholder="name@email.com or +1 555-123-4567"
                    aria-label="Email or WhatsApp number">
             <span class="input-icon">📧</span>
           </div>
 
+          <div>
+            <label class="label" for="password">Password</label>
+            <input type="password" id="password" class="input" required minlength="8" autocomplete="current-password">
+          </div>
           <!-- Remember me -->
           <div class="checkbox mb-4">
             <input type="checkbox" id="remember" class="checkbox-input" checked>
@@ -63,7 +69,7 @@
 
           <!-- Forgot password link -->
           <p class="text-sm mb-4 hover:underline" style="color: var(--color-brand-teal);">
-            Forgot password?
+            <a href="forgot.html">Forgot password?</a>
           </p>
 
           <!-- Divider "or" -->
@@ -76,8 +82,10 @@
 
           <button type="submit" class="btn btn-primary w-full">Log in</button>
         </form>
+        <p id="auth-feedback" class="auth-feedback" role="alert"></p>
       </div>
     </div>
   </div>
+  <script type="module" src="prototype/legacy-auth.mjs"></script>
 </body>
 </html>
