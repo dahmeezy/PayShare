@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Local guard: refuse commit messages that add co-authors or mention AI agents.
+# Enable once per clone:  git config core.hooksPath .githooks
+msg=$(cat "$1")
+if echo "$msg" | grep -iqE '^(co-authored-by|generated-by|assisted-by):'; then
+  echo "Commit rejected: no Co-authored-by / agent trailers. Only the author appears on PayShare commits." >&2; exit 1
+fi
+if echo "$msg" | tr 'A-Z' 'a-z' | grep -qE 'claude|anthropic|copilot|codex|chatgpt|openai|gemini|cursor ai|aider'; then
+  echo "Commit rejected: commit message mentions an AI agent." >&2; exit 1
+fi
