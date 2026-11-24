@@ -1,4 +1,4 @@
-import { addPasswordToggle, demoCode, validContact, wireCode } from "./auth-controls.mjs";
+import { addPasswordToggle, applyAuthPlaceholders, demoCode, validContact, wireCode } from "./auth-controls.mjs";
 import { downloadSample, editorDialog, filterItems, messageDialog, openDialog, pickFiles, restoreMockFields, saveMockFields, showFiles, wireChoices } from "./demo-interactions.mjs";
 import { demoMessages, readPreference, roles, savePreference } from "./mock-data.mjs";
 import { liveApplication, liveMode } from "./live.mjs";
@@ -485,11 +485,8 @@ function installInvite() {
 function resetFields() {
   const node = screen.querySelector('[data-layer="Input"]');
   const first = node.cloneNode(true);
-  const [caption, field] = node.children;
-  caption.textContent = "New password";
-  field.querySelector("p").textContent = "At least eight characters";
+  node.firstElementChild.textContent = "New password";
   first.querySelector("p").textContent = "Confirm password";
-  first.querySelector('[data-layer="Field"] p').textContent = "Repeat the new password";
   node.after(first);
   screen.querySelector('[data-figma="56:384"] p').textContent = "Save new password";
   const form = screen.querySelector('[data-layer="Form"]');
@@ -665,6 +662,7 @@ async function render() {
     });
     wireScreen(screen.dataset.route);
     live?.install(screen.dataset.route);
+    if (/^(a\d{2}|reset-password)$/.test(screen.dataset.route)) applyAuthPlaceholders(screen);
     if (!live && !hideChrome && screen.classList.contains("sample-payment")) {
       const banner = element("p", demoMessages.payment);
       banner.className = "payment-note";

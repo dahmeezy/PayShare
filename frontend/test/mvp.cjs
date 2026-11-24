@@ -14,6 +14,9 @@ const mobile = process.env.PAYSHARE_MVP_MOBILE === "1";
 async function register(page, name, email, role, invited = false) {
   if (invited) await page.getByRole("link", { name: "Create an account to respond" }).click();
   else await page.getByRole("link", { name: "Create a free account" }).click();
+  assert.equal(await page.getByLabel("Full name").getAttribute("placeholder"), "Enter your full name");
+  assert.equal(await page.getByLabel("Email address").getAttribute("placeholder"), "e.g. name@example.com");
+  assert.equal(await page.getByLabel("Create a password").getAttribute("placeholder"), "At least 8 characters");
   await page.getByLabel("Full name").fill(name);
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Create a password").fill(password);
@@ -34,6 +37,8 @@ const show = (page, name) => click(page.getByText(name, { exact: true }));
 const route = (page, frame) => page.waitForSelector('#screen[data-route^="' + frame + '"]:not([aria-busy])');
 async function onboarding(page, name) {
   await route(page, "a08");
+  assert.equal(await page.getByLabel("Profile name").getAttribute("placeholder"), "Enter your display name");
+  assert.equal(await page.getByLabel("Public Stellar wallet").getAttribute("placeholder"), "Enter your public Stellar address (G...)");
   if (name) await page.getByLabel("Profile name").fill(name);
   await show(page, "Continue");
   await route(page, "a09");

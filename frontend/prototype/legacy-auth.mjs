@@ -1,8 +1,10 @@
-import { addPasswordToggle, demoCode, validContact, wireCode } from "./auth-controls.mjs";
+import { addPasswordToggle, applyAuthPlaceholders, demoCode, validContact, wireCode } from "./auth-controls.mjs";
 
 const form = document.querySelector("form");
 const page = location.pathname.split("/").at(-1);
 const feedback = document.querySelector("#auth-feedback");
+
+applyAuthPlaceholders(document);
 
 for (const input of document.querySelectorAll('input[type="password"]')) {
   const field = document.createElement("span");

@@ -1,6 +1,38 @@
 export const demoCode = "481026";
 const eye = new URL("assets/146768e0def859c5.svg", import.meta.url);
 
+const nameHint = "Enter your full name";
+const emailHint = "e.g. name@example.com";
+const passwordLengthHint = "At least 8 characters";
+const phoneHint = "e.g. +234 801 234 5678";
+const placeholders = new Map([
+  ["Full name", nameHint],
+  ["Your name", nameHint],
+  ["Email address", emailHint],
+  ["Email or WhatsApp number", emailHint],
+  ["Email or WhatsApp", emailHint],
+  ["Password", "Enter your password"],
+  ["Create a password", passwordLengthHint],
+  ["Strong password", passwordLengthHint],
+  ["New password", passwordLengthHint],
+  ["Confirm password", "Re-enter your password"],
+  ["Phone number", phoneHint],
+  ["WhatsApp number", phoneHint],
+  ["Public Stellar wallet", "Enter your public Stellar address (G...)"],
+  ["Profile name", "Enter your display name"],
+  ["Business name (optional)", "Enter your business name"],
+]);
+
+export function applyAuthPlaceholders(root) {
+  for (const input of root.querySelectorAll("input")) {
+    const label = input.getAttribute("aria-label") || input.labels?.[0]?.textContent.trim();
+    const placeholder = placeholders.get(label);
+    if (!placeholder) continue;
+    input.placeholder = placeholder;
+    input.classList.add("auth-input");
+  }
+}
+
 export function addPasswordToggle(input, icon) {
   const button = document.createElement("button");
   const image = document.createElement("img");

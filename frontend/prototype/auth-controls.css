@@ -1,3 +1,11 @@
+.appearance-dark { --auth-placeholder-color: #9baac0; }
+.auth-input::placeholder {
+  color: var(--auth-placeholder-color, #5f6f84);
+  font-weight: 400;
+  opacity: 1;
+}
+form .label { font-weight: 500; }
+
 .password-toggle {
   display: inline-grid;
   place-items: center;
