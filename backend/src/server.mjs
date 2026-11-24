@@ -2,15 +2,16 @@
 // Every route in PAID_ROUTES costs USDC per request; everything else is free.
 // This server never touches the blockchain: the facilitator verifies and settles each payment on Stellar.
 import express from "express";
+import { pathToFileURL } from "node:url";
 import { StrKey } from "@stellar/stellar-sdk";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { config } from "./config.mjs";
-import { moneyRouter } from "./money-api.mjs";
+import { moneyRouter, moneyErrors } from "./money-api.mjs";
 import { authRouter } from "./auth-router.mjs";
 
-// [Rest of the server code from before, with auth router added]
+const { usdc, network, facilitator: fac } = config;
 
 // ── Prices ─────────────────────────────────────────────────
 // Prices are product decisions, so they live here. Asset and decimals come from .env.
@@ -134,22 +135,18 @@ app.get("/search", (req, res) => {
 // ── Auth routes ────────────────────────────────────────────
 app.use("/api", authRouter);
 
-// ── Console ────────────────────────────────────────────────
-// [rest of console code]
+app.use("/api", moneyRouter, moneyErrors);
 
-app.listen(config.port, () => {
-  console.log(`\nPaid API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);
-  console.log(`Try:  npm run peek   (shows the 402 for /paid/sun-forecast)\n`);
-});
-// Global error handler for all routes
 app.use((error, req, res, next) => {
-  errorHandler(error, req, res, next);
+  if (res.headersSent) return next(error);
+  const status = error.status || (error.message === "Invalid credentials" ? 401 : 400);
+  res.status(status).json({ error: status >= 500 ? "Internal server error" : error.message });
 });
 
-// ── Console ──────────────────────────────────────────────
-// [rest of console code]
+export default app;
 
-app.listen(config.port, () => {
-  console.log(`\nPaid API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);
-  console.log(`Try:  npm run peek   (shows the 402 for /paid/sun-forecast)\n`);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  app.listen(config.port, () => {
+    console.log(`PayShare API on http://localhost:${config.port}`);
+  });
+}
