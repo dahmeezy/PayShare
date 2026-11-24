@@ -29,8 +29,16 @@ Stop it (Ctrl+C in its terminal), or change `PORT` / `CONSOLE_PORT` and `API_BAS
 ## Facilitator
 
 **`rejected the API key (HTTP 401)` or `no supported payment kinds loaded from any facilitator`**
-The Build on Stellar facilitator needs a key on testnet too. Get one at
-https://channels.openzeppelin.com/testnet/gen and paste it into `FACILITATOR_PRIMARY_API_KEY`.
+The Build on Stellar facilitator requires a valid API key on testnet. If the key is missing
+or rejected, get one at https://channels.openzeppelin.com/testnet/gen and set
+`FACILITATOR_PRIMARY_API_KEY` in your local `.env`. Restart the server and run `npm run check`
+to verify the configuration. The check does not send a payment.
+
+`npm run server` starts the API even when payments are unavailable. Endpoints such as
+`/catalog`, `/search`, and `/api/login` are independent of the facilitator.
+A paid route returns `503` if its payment configuration is missing or discovery fails.
+PayShare retries discovery on a later paid request. It only releases paid content once
+the facilitator has verified and settled the payment.
 
 **Facilitator unreachable or `does not list stellar:testnet`**
 Switch facilitator: set `FACILITATOR=backup` in `.env` and restart the server.
