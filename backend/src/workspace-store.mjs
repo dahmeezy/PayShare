@@ -40,7 +40,7 @@ function validate(state) {
     }
     for (const task of tasks) {
       const payout = task.payout;
-      if (ids.has(task.id) || !money(task.amount) || !["assigned", "submitted", "approved", "rejected"].includes(task.status) ||
+      if (ids.has(task.id) || !money(task.amount) || !["assigned", "submitted", "approved", "rejected", "declined", "cancelled"].includes(task.status) ||
           typeof task.clientApprovalRequired !== "boolean" ||
           (task.clientApprovedAt && (!task.clientApprovalRequired || task.status !== "approved")) ||
           !payout || !["pending", "simulated", "processing", "failed", "paid"].includes(payout.status) ||
