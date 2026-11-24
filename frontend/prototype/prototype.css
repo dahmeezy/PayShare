@@ -273,3 +273,54 @@ body { overflow-x: hidden; }
   #screen.desktop [data-layer="Top bar"] [data-layer="Search field"] { flex: 1 1 auto; min-width: 0; width: auto; }
   #screen.desktop [data-layer="Top bar"] > :not([data-layer="Search field"]) { flex-shrink: 0; }
 }
+
+/* ── Phones: structure for screens designed only at desktop size ───── */
+@media (max-width: 767px) {
+  /* The borrowed tab bar stays fixed even on phone frames. */
+  #screen.has-tab-bar .mobile-tab-bar[data-layer] { position: fixed; bottom: 0; top: auto; }
+
+  /* Text wraps instead of being cut off; tabs, chips and buttons stay on one line. */
+  #screen.desktop p { white-space: normal; overflow-wrap: break-word; }
+  #screen.desktop :is([data-layer="Button"], [data-layer="Tab"], [data-layer="Tabs"], [data-layer="Chip"], [data-layer="Chips"], [data-layer="Filters"], [data-layer="Sidebar item"]) p,
+  #screen.desktop .demo-action > p { white-space: nowrap; }
+  #screen.desktop [data-layer="Button"] { flex-shrink: 0; max-width: 100%; }
+  #screen.desktop :is([data-layer="Tabs"], [data-layer="Chips"], [data-layer="Filters"]) { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+
+  /* Page headers: title, status badge and actions stack cleanly. */
+  #screen.desktop [data-layer="Page header"] { flex-direction: column; align-items: stretch; gap: 12px; }
+  #screen.desktop [data-layer="Page header"] { height: auto; }
+  #screen.desktop [data-layer="Page header"] > * { width: 100%; min-width: 0; flex: 0 0 auto !important; }
+  #screen.desktop [data-layer="Page header"] [data-layer="tr"] > p:first-child { flex: 0 1 100%; min-width: 0; overflow: visible; }
+  #screen.desktop [data-layer="Page header"] :is([data-layer="Title"], [data-layer="t"], [data-layer="tr"]) { flex-wrap: wrap; row-gap: 6px; min-width: 0; }
+  #screen.desktop [data-layer="Page header"] [data-layer="Actions"] { justify-content: flex-start; }
+
+  /* Label/value rows wrap rather than squeezing one side to a single letter. */
+  #screen.desktop [data-layer="Main"] :is([data-layer="Row"], [data-layer="r"], [data-layer="Breakdown row"]):not(.live-table *) { flex-wrap: wrap; column-gap: 12px; row-gap: 2px; }
+  #screen.desktop [data-layer="Main"] :is([data-layer="Row"], [data-layer="r"]) > p:first-child { flex: 0 1 auto; min-width: 7rem; }
+  #screen.desktop [data-layer="Main"] :is([data-layer="Row"], [data-layer="r"]) > p:last-child { flex: 1 1 auto; min-width: 0; text-align: end; }
+  #screen.desktop [data-layer="Two"], #screen.desktop [data-layer="Columns"] { flex-wrap: wrap; }
+  #screen.desktop [data-layer="Two"] > * { flex: 1 1 9rem; min-width: 0; }
+
+  /* Search becomes an icon button so the top bar fits on one line. */
+  #screen.desktop [data-layer="Top bar"] > [data-layer="Search field"] {
+    flex: 0 0 40px; width: 40px; height: 40px; padding: 0; justify-content: center; margin-inline-end: auto;
+  }
+  #screen.desktop [data-layer="Top bar"] > [data-layer="Search field"] > :not([data-layer^="icon"]) { display: none; }
+
+  /* Pop-up forms open as a full-screen sheet above everything. */
+  #screen.desktop [data-layer="Scrim"] { position: fixed; inset: 0; z-index: 9; }
+  #screen.desktop [data-layer="Modal"] {
+    position: fixed !important; inset: 0 !important; transform: none !important; z-index: 10;
+    width: 100% !important; max-width: 100% !important; height: 100dvh !important; max-height: 100dvh;
+    margin: 0; border-radius: 0; overflow-y: auto; overscroll-behavior: contain;
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+  #screen.desktop [data-layer="Modal"] > * { max-width: 100%; }
+  #screen:has([data-layer="Modal"]) .mobile-tab-bar { display: none; }
+  #screen:has([data-layer="Modal"]) [data-layer="Top bar"] { position: static; }
+}
+
+/* Fields the app adds to a pop-up form sit above its buttons, at every width. */
+#screen [data-layer="Modal"]:has(> .live-field) { display: flex; flex-direction: column; }
+#screen [data-layer="Modal"] > .live-field { order: 2; width: auto; padding: 0 24px 16px; }
+#screen [data-layer="Modal"] > [data-layer="Footer"] { order: 3; }
