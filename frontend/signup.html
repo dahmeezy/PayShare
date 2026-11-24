@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayShare - Create your account</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="prototype/auth-controls.css">
 </head>
 <body>
   <div class="max-w-1440 mx-auto" style="min-height: 100vh;">
@@ -57,7 +58,7 @@
           <!-- Email/WhatsApp input -->
           <div>
             <label class="label" for="email">Email or WhatsApp number</label>
-            <input type="email" id="email" class="input input-with-icon" 
+            <input type="text" id="email" data-contact required class="input input-with-icon"
                    placeholder="name@email.com or +1 555-123-4567"
                    aria-label="Email or WhatsApp number">
             <span class="input-icon">📧</span>
@@ -66,27 +67,23 @@
           <!-- Password input -->
           <div>
             <label class="label" for="password">Strong password</label>
-            <input type="password" id="password" class="input" 
+            <input type="password" id="password" required minlength="8" autocomplete="new-password" class="input"
                    placeholder="Strong password"
                    aria-label="Strong password">
-            <p class="form-error" id="password-error">Password must be at least 6 characters</p>
           </div>
 
           <!-- Confirm password -->
           <div>
             <label class="label" for="confirm-password">Confirm password</label>
-            <input type="password" id="confirm-password" class="input" 
+            <input type="password" id="confirm-password" required minlength="8" autocomplete="new-password" class="input"
                    placeholder="Confirm password"
                    aria-label="Confirm password">
-            <p class="form-error" id="confirm-error">Passwords do not match</p>
           </div>
 
           <!-- Terms checkbox -->
           <div class="checkbox">
             <input type="checkbox" id="terms" class="checkbox-input" required>
-            <span class="checkbox-label">
-              I agree to the Terms of Service and Privacy Policy
-            </span>
+            <label class="checkbox-label" for="terms">I agree to the Terms of Service and Privacy Policy</label>
           </div>
 
           <p class="text-sm text-text-muted">
@@ -95,56 +92,11 @@
 
           <button type="submit" class="btn btn-primary w-full">Create account</button>
         </form>
+        <p id="auth-feedback" class="auth-feedback" role="alert"></p>
       </div>
     </div>
   </div>
 
-  <script>
-    // Form validation
-    const form = document.querySelector('form');
-    const passwordInput = document.getElementById('password');
-    const confirmPasswordInput = document.getElementById('confirm-password');
-    const passwordError = document.getElementById('password-error');
-    const confirmError = document.getElementById('confirm-error');
-
-    form.addEventListener('submit', (e) => {
-      let valid = true;
-
-      // Password validation
-      if (passwordInput.value.length < 6) {
-        passwordError.style.display = 'block';
-        valid = false;
-      } else {
-        passwordError.style.display = 'none';
-      }
-
-      // Confirm password match
-      if (passwordInput.value !== confirmPasswordInput.value) {
-        confirmError.style.display = 'block';
-        valid = false;
-      } else {
-        confirmError.style.display = 'none';
-      }
-
-      if (!valid) {
-        e.preventDefault();
-      }
-    });
-
-    // Real-time password validation
-    passwordInput.addEventListener('input', () => {
-      if (passwordInput.value.length >= 6) {
-        passwordError.style.display = 'none';
-      }
-    });
-
-    confirmPasswordInput.addEventListener('input', () => {
-      if (passwordInput.value === confirmPasswordInput.value) {
-        confirmError.style.display = 'none';
-      } else {
-        confirmError.style.display = 'block';
-      }
-    });
-  </script>
+  <script type="module" src="prototype/legacy-auth.mjs"></script>
 </body>
 </html>
