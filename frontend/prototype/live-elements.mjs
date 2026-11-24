@@ -84,6 +84,10 @@ export function payoutStatus(payout) {
     paid: "Verified payment", failed: "Unconfirmed · Locked",
   }[payout.status] || "Unavailable";
 }
+// Short form for chips and table cells, where the full sentence does not fit.
+export function payoutBadge(payout) {
+  return payout.status === "simulated" ? "Simulated" : payoutStatus(payout);
+}
 export function statusText(node, value) {
   if (!node) return;
   node.classList.add("live-status");

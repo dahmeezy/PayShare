@@ -1,5 +1,6 @@
 import { action, bar, date, empty, initials, layer, layers, match, money, number, paragraphs, put,
-  payoutStatus, replaceEntries, rowLink, slots, stats, statusText, sum, taskStatus } from "./live-elements.mjs";
+  payoutBadge, payoutStatus, replaceEntries, rowLink, slots, stats, statusText, sum, taskStatus } from "./live-elements.mjs";
+const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 
 export function bindIdentity(screen, user, { project, review, confirmations, tasks }) {
   const account = layer(screen, "User");
@@ -27,7 +28,7 @@ export function bindIdentity(screen, user, { project, review, confirmations, tas
 function datesAndActivities(data) {
   const items = data.tasks.flatMap(t => [
     ...(t.payout.status !== "pending" ? [{
-      title: t.title, detail: payoutStatus(t.payout) + " · " + money(t.amount),
+      title: t.title, detail: payoutBadge(t.payout) + " · " + money(t.amount),
       when: t.payout.paidAt, status: t.payout.status === "simulated" ? "Simulated" :
         t.payout.status === "paid" ? "Verified" : t.payout.status === "failed" ? "Locked" : "Processing", route: t.project.role === "worker" ? "w12" : t.project.role === "client" ? "d08" : "c29",
       project: t.project, task: t,
@@ -134,8 +135,8 @@ export function bindDashboard(screen, route, user, data) {
       [money(pending), pendingDetail], [money(available), "Selected project balance"],
     ] : [
       [projects.length, projectSummary], [money(project?.budget), "Agreed budget"], [money(funds), state],
-      [percent + "%", description], [money(t.worker_pool), new Set(selectedTasks.map(task => task.workerId)).size + " workers"],
-      [money(project?.compensation), contractor || "No contractor linked"], [money(t.expenses), (project?.expenses.length || 0) + " expenses"],
+      [percent + "%", description], [money(t.worker_pool), plural(new Set(selectedTasks.map(task => task.workerId)).size, "worker", "workers")],
+      [money(project?.compensation), contractor || "No contractor linked"], [money(t.expenses), plural(project?.expenses.length || 0, "expense", "expenses")],
       [money(paid), paidDetail],
     ]);
     const card = layer(content, route === "c01" ? "Project overview" : "Project");
@@ -152,7 +153,7 @@ export function bindDashboard(screen, route, user, data) {
     const deadlines = layer(content, "Upcoming deadlines");
     match(deadlines, [["Upcoming deadlines", "Current tasks"]]);
     replaceEntries(deadlines, '[data-layer="Deadline"]', selectedTasks.slice(0, 4), (row, task) => {
-      slots(row, ["TASK", "•", task.title, task.workerName, taskStatus(task)]);
+      slots(row, [task.deadline ? new Date(task.deadline).toLocaleDateString(undefined, { month: "short" }).toUpperCase() : "TASK", task.deadline ? String(new Date(task.deadline).getDate()) : "•", task.title, task.workerName, taskStatus(task)]);
       rowLink(row, "c20", task.project, task);
     }, "No tasks scheduled.");
     replaceEntries(layer(content, "Workers requiring attention"), '[data-layer="Item"]', review.slice(0, 3), (row, task) => {

@@ -1,5 +1,5 @@
 import { action, bar, clean, date, empty, initials, labelAction, layer, layers, match, money, number, paragraphs,
-  payoutStatus, put, replaceEntries, rowLink, slots, stats, statusText, sum, taskStatus } from "./live-elements.mjs";
+  payoutBadge, payoutStatus, put, replaceEntries, rowLink, slots, stats, statusText, sum, taskStatus } from "./live-elements.mjs";
 
 const recs = ':scope > [data-layer="Row"]';
 const label = value => value?.[0]?.toUpperCase() + value?.slice(1);
@@ -318,7 +318,7 @@ export function bindPayments(content, route, data, filter) {
   const relevant = owned ? tasks : selectedTasks;
   const payments = relevant.map(t => ({
     project: t.project, task: t, name: owned ? t.project.name : t.workerName, title: t.title, amount: t.amount,
-    date: t.payout.paidAt, tx: t.payout.transaction, status: payoutStatus(t.payout), explorerUrl: t.payout.explorerUrl,
+    date: t.payout.paidAt, tx: t.payout.transaction, status: payoutBadge(t.payout), explorerUrl: t.payout.explorerUrl,
   }));
   if (!owned) for (const receipt of project?.funding || []) payments.push({
     name: receipt.transaction ? "Verified funding" : "Simulated funding", title: project.name, amount: receipt.amount, date: receipt.confirmed_at,

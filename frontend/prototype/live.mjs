@@ -387,15 +387,18 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
       const rail = layer(content, "Rail");
       if (rail) rail.hidden = true;
       if (!data.selectedTasks.length) empty(area, "No project activity.");
-      if (route === "c31" && data.project && user.role !== "worker") {
-        api(workspace + "/projects/" + data.project.id + "/agent-log").then(entries => {
-          if (!entries.length) return empty(area, "The payout agent has not made any decisions yet.");
-          empty(area, "Payout agent decisions, newest first");
-          for (const entry of entries) {
-            empty(area, new Date(entry.at).toLocaleString() + " · " + entry.message);
-            for (const check of entry.checks) empty(area, "    " + (check.ok ? "✓ " : "✗ ") + check.label);
-          }
-        }).catch(() => {});
+      if (route === "c31" && user.role !== "worker") {
+        const log = data.agentLog || [];
+        empty(area, log.length ? "Payout agent decisions, newest first" : "The payout agent has not made any decisions yet.");
+        for (const entry of log) {
+          empty(area, new Date(entry.at).toLocaleString() + " · " + entry.message);
+          for (const check of entry.checks) empty(area, "    " + (check.ok ? "✓ " : "✗ ") + check.label);
+        }
+        const unpaid = data.selectedTasks.filter(task => !["paid", "simulated"].includes(task.payout.status));
+        const reason = task => task.acceptedAt === null ? "Task not accepted" : task.status === "assigned" ? "Work not submitted" :
+          task.status === "submitted" ? "Awaiting your review" : taskStatus(task);
+        replaceEntries(layer(content, "Now"), '[data-layer="r"]', unpaid, (row, task) =>
+          slots(row, [initials(task.workerName), task.workerName + " · " + money(task.amount), reason(task), "Waiting"]), "No payments are waiting.");
       }
       if (capabilities.aiSummary && data.project) {
         const button = document.createElement("button");
@@ -431,16 +434,14 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
         }));
         content.append(button);
       }
-      if (data.project && user.role !== "worker") {
+      if (data.agentLog?.length) {
         const list = document.createElement("div");
         list.setAttribute("aria-label", "Payout agent log");
         content.append(list);
-        api(workspace + "/projects/" + data.project.id + "/agent-log").then(entries => {
-          for (const entry of entries.filter(item => item.taskId === data.task?.id)) {
-            empty(list, new Date(entry.at).toLocaleString() + " · " + entry.message);
-            for (const check of entry.checks) empty(list, (check.ok ? "✓ " : "✗ ") + check.label);
-          }
-        }).catch(() => {});
+        for (const entry of data.agentLog.filter(item => item.taskId === data.task?.id)) {
+          empty(list, new Date(entry.at).toLocaleString() + " · " + entry.message);
+          for (const check of entry.checks) empty(list, (check.ok ? "✓ " : "✗ ") + check.label);
+        }
       }
       return;
     }
@@ -489,6 +490,9 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
           normalized === "d06" || normalized === "md05" ? data.confirmations[0] :
           normalized === "c24" || normalized === "mc09" ? data.ready[0] : null) || data.selectedTasks[0];
         startError = "";
+        if (["c31", "c08", "c25", "c26", "c27", "c28", "c30"].includes(normalized) && data.project && user.role !== "worker") {
+          data.agentLog = await api(workspace + "/projects/" + data.project.id + "/agent-log").catch(() => []);
+        }
         // A worker must accept the agreed terms before working: unaccepted tasks open the accept screen.
         const pending = data.task;
         if (user.role === "worker" && pending && pending.acceptedAt === null && !pending.declinedAt && pending.status === "assigned"
