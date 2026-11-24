@@ -1,6 +1,7 @@
 import { addPasswordToggle, demoCode, validContact, wireCode } from "./auth-controls.mjs";
 import { downloadSample, editorDialog, filterItems, messageDialog, openDialog, pickFiles, restoreMockFields, saveMockFields, showFiles, wireChoices } from "./demo-interactions.mjs";
 import { demoMessages, readPreference, roles, savePreference } from "./mock-data.mjs";
+import { liveApplication, liveMode } from "./live.mjs";
 import { authoredRoutes, displayRoute, groups, normalize, roleFor, roleLinks, targetFor } from "./navigation.mjs";
 
 const screen = document.querySelector("#screen");
@@ -32,6 +33,8 @@ const [frames, authoring] = await Promise.all(["screens.json", "reactions.json"]
 });
 const index = new Map(frames.map(view => [view.route, view]));
 const authored = authoredRoutes(authoring);
+const live = liveMode ? liveApplication({ screen, goto, render, roles, roleFor, switchTheme: () => switchTheme() }) : null;
+if (live) await live.start();
 
 function announce(message) {
   clearTimeout(statusTimer);
@@ -365,6 +368,7 @@ function installAction(node, label, route) {
       const verifyScope = codeLogin ? screen.querySelector('[data-layer="Input"]') : scope;
       if (focusInvalid(verifyScope || scope)) return;
     }
+    if (live?.handle(button, label, route, scope)) return;
     if (target === "@join-invite") {
       role = "worker";
       savePreference("role", role);
@@ -607,7 +611,8 @@ function wireScreen(route) {
 async function render() {
   if (!index.size) return;
   const version = ++renderVersion;
-  const route = location.hash.match(/^#\/([\w-]+)$/)?.[1] || "a01";
+  const requested = location.hash.match(/^#\/([\w-]+)$/)?.[1] || "a01";
+  const route = live?.route(requested) || requested;
   const reset = route === "reset-password";
   const wanted = reset ? "a04" : index.has(route) ? route : "a01";
   const target = displayRoute(wanted, index, {
@@ -642,6 +647,7 @@ async function render() {
       if (!node.getAttribute("href").startsWith("#/")) node.removeAttribute("href");
     });
     wireScreen(screen.dataset.route);
+    live?.install(screen.dataset.route);
     if (!hideChrome && screen.classList.contains("sample-payment")) {
       const banner = element("p", demoMessages.payment);
       banner.className = "payment-note";
@@ -732,6 +738,10 @@ window.addEventListener("keydown", (event) => {
 });
 narrow.addEventListener("change", render);
 compact.addEventListener("change", render);
+if (live) {
+  document.querySelector("#demo").hidden = true;
+  document.body.classList.add("workspace-live");
+}
 if (hideChrome) {
   document.querySelector("#demo").hidden = true;
   document.body.classList.add("compare-view");
