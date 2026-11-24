@@ -55,3 +55,7 @@
     min-inline-size: 64rem;
   }
 }
+
+/* Long names and labels shorten with an ellipsis instead of being cut off mid-letter. */
+.workspace-live #screen :is([data-layer="User"], [data-layer="Who"], [data-layer="t"]) { min-width: 0; }
+.workspace-live #screen [data-layer="User"] [data-layer="Who"] p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 11rem; }

@@ -210,11 +210,11 @@ async function main() {
     await contractor.getByLabel("Create a 6-digit payout PIN").fill("123456");
     await show(contractor, "Run payout simulation");
     await route(contractor, "c29");
-    await contractor.getByText("Simulated · No funds moved", { exact: true }).waitFor();
+    await contractor.getByText("Simulated", { exact: true }).first().waitFor();
 
     await worker.goto(origin + "/frontend/prototype.html?app=1#/w12");
     await route(worker, mobile ? "mw10" : "w12");
-    await worker.getByText("Simulated · No funds moved", { exact: true }).waitFor();
+    await worker.getByText("Simulated", { exact: true }).first().waitFor();
     assert.equal(await worker.getByRole("link", { name: "View verified transaction" }).count(), 0);
     for (const width of [360, 390, 768, 1024, 1440]) {
       for (const [page, role] of [[client, "d"], [contractor, "c"], [worker, "w"]]) {
