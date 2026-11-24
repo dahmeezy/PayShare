@@ -116,3 +116,5 @@ export function moneyErrors(error, req, res, next) {
   const status = error.status || 503;
   res.status(status).json({ error: status < 500 || error.code === "PAYMENT_HISTORY_UNAVAILABLE" ? error.message : "Project data is temporarily unavailable" });
 }
+
+moneyRouter.use(moneyErrors);

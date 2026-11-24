@@ -2,23 +2,14 @@
 // Every route in PAID_ROUTES costs USDC per request; everything else is free.
 // This server never touches the blockchain: the facilitator verifies and settles each payment on Stellar.
 import express from "express";
+import { pathToFileURL } from "node:url";
 import { StrKey } from "@stellar/stellar-sdk";
-import { paymentMiddleware, x402ResourceServer } from "@x402/express";
+import { paymentMiddlewareFromHTTPServer, x402HTTPResourceServer, x402ResourceServer } from "@x402/express";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";
-import { config } from "./config.mjs";
+import { config } from "./settings.mjs";
 import { moneyRouter } from "./money-api.mjs";
-import { authRouter } from "./auth-router.mjs";
-
-// [Rest of the server code from before, with auth router added]
-
-// ── Prices ─────────────────────────────────────────────────
-// Prices are product decisions, so they live here. Asset and decimals come from .env.
-// usd(0.001) → { amount: "10000", asset: "C..." }  (USDC has 7 decimals on Stellar)
-const usd = (dollars) => ({
-  amount: String(Math.round(dollars * 10 ** usdc.decimals)),
-  asset: usdc.contractId,
-});
+import { createAuthRouter } from "./auth-router.mjs";
 
 const PAID_ROUTES = {
   "GET /sun-forecast":    { price: 0.001, description: "Today's solar conditions: sun hours, cloud cover, rain chance" },
@@ -27,129 +18,150 @@ const PAID_ROUTES = {
   "GET /market-report":   { price: 0.5,   description: "Full residential solar market report (priced high to test the agent's limits)" },
 };
 
-const routesConfig = Object.fromEntries(
-  Object.entries(PAID_ROUTES).map(([route, { price, description }]) => [
-    route,
-    {
-      accepts: { scheme: "exact", price: usd(price), network, payTo: config.recipient },
+function paidRequests({ usdc, network, facilitator, recipient }) {
+  const unavailable = (_req, res) => res.status(503).json({ error: "Payments are temporarily unavailable." });
+  const url = URL.canParse(facilitator.url) ? new URL(facilitator.url) : null;
+  if (network !== "stellar:testnet" || !StrKey.isValidContract(usdc.contractId || "") ||
+      usdc.decimals !== 7 || !StrKey.isValidEd25519PublicKey(recipient) ||
+      !url || !["https:", "http:"].includes(url.protocol) ||
+      (facilitator.keyUrl && !facilitator.apiKey)) {
+    return unavailable;
+  }
+
+  const routes = Object.fromEntries(
+    Object.entries(PAID_ROUTES).map(([route, { price, description }]) => [route, {
+      accepts: {
+        scheme: "exact",
+        price: { amount: String(Math.round(price * 10 ** usdc.decimals)), asset: usdc.contractId },
+        network, payTo: recipient,
+      },
       description,
       mimeType: "application/json",
-    },
-  ]),
-);
-
-// ── Facilitator ────────────────────────────────────────────
-// The key (if any) belongs to the active facilitator's own settings, so it only goes to that URL.
-const facilitatorClient = new HTTPFacilitatorClient({
-  url: fac.url,
-  ...(fac.apiKey && {
-    createAuthHeaders: async () => {
-      const h = { Authorization: `Bearer ${fac.apiKey}` };
-      return { verify: h, settle: h, supported: h };
-    },
-  }),
-});
-
-// ── App ────────────────────────────────────────────────────
-const app = express();
-
-// Plain-English request log for the stream: 402 = "asked to pay", 200 = "paid and served".
-app.use("/paid", (req, res, next) => {
-  res.on("finish", () => {
-    const label = { 402: "402 → payment required", 200: "200 → paid, data sent" }[res.statusCode] ?? res.statusCode;
-    console.log(`${new Date().toLocaleTimeString()}  ${req.method} ${req.originalUrl}  ${label}`);
-  });
-  next();
-});
-
-// Fail closed: if the recipient is missing or invalid, paid routes return 503,
-// never their data for free.
-if (StrKey.isValidEd25519PublicKey(config.recipient)) {
-  const resourceServer = new x402ResourceServer(facilitatorClient)
-    .register(network, new ExactStellarScheme())
-    // Say WHY a payment failed, so a failed demo is diagnosable on the spot.
-    .onVerifyFailure(async ({ error }) => console.warn(`  ✗ verify failed: ${error.message}`))
-    .onSettleFailure(async ({ error }) => console.warn(`  ✗ settle failed: ${error.message}  (the payment may still land on-chain: check the explorer)`));
-  app.use("/paid", paymentMiddleware(routesConfig, resourceServer));
-} else {
-  console.warn("⚠ STELLAR_RECIPIENT missing or invalid: paid routes return 503. Run: npm run setup");
-  app.use("/paid", (_req, res) => res.status(503).json({ error: "Payments not configured on this server." }));
-}
-
-// ── Paid routes (demo data: fixed sample values, marked demo: true) ──
-const where = (req) => String(req.query.location || "your area").slice(0, 80);
-
-app.get("/paid/sun-forecast", (req, res) => {
-  res.json({ location: where(req), sunHours: 6.5, cloudCover: "25%", rainChance: "10%",
-             verdict: "Good conditions for solar output and rooftop installation", demo: true });
-});
-
-app.get("/paid/installers", (req, res) => {
-  res.json({
-    location: where(req),
-    installers: [
-      { name: "Apex Solar Installs",  rating: 4.8, nextAvailable: "in 2 days", priceFromUsd: 250 },
-      { name: "GreenRoof Energy",     rating: 4.5, nextAvailable: "tomorrow",  priceFromUsd: 220 },
-      { name: "PowerUp Technicians",  rating: 4.2, nextAvailable: "in 5 days", priceFromUsd: 180 },
-    ],
-    demo: true,
-  });
-});
-
-app.get("/paid/supplier-prices", (_req, res) => {
-  res.json({
-    product: "5kVA hybrid solar inverter",
-    currency: "USD",
-    suppliers: [
-      { name: "SunVolt Supply", price: 780, inStock: true },
-      { name: "BrightGrid",     price: 705, inStock: true },
-      { name: "Helios Depot",   price: 745, inStock: false },
-    ],
-    demo: true,
-  });
-});
-
-app.get("/paid/market-report", (_req, res) => {
-  res.json({ title: "Residential Solar Market Report", pages: 42, summary: "…", demo: true });
-});
-
-// ── Free routes ────────────────────────────────────────────
-// What's on sale and for how much, so the agent and the console can show it.
-app.get("/catalog", (_req, res) => {
-  res.json({
-    network,
-    asset: usdc.code,
-    routes: Object.entries(PAID_ROUTES).map(([route, { price, description }]) => {
-      const [method, path] = route.split(" ");
-      return { method, path: `/paid${path}`, priceUsd: price, description };
+    }]),
+  );
+  const client = new HTTPFacilitatorClient({
+    url: facilitator.url,
+    ...(facilitator.apiKey && {
+      createAuthHeaders: async () => {
+        const headers = { Authorization: `Bearer ${facilitator.apiKey}` };
+        return { verify: headers, settle: headers, supported: headers };
+      },
     }),
   });
-});
+  const resource = new x402ResourceServer(client)
+    .register(network, new ExactStellarScheme())
+    .onVerifyFailure(async ({ error }) => console.warn(`Payment verification failed: ${error.message}`))
+    .onSettleFailure(async ({ error }) => console.warn(`Payment settlement failed: ${error.message}`));
+  const httpServer = new x402HTTPResourceServer(resource, routes);
+  const middleware = paymentMiddlewareFromHTTPServer(httpServer, undefined, undefined, false);
+  let initialization;
 
-// A free step for the agent: finding suppliers costs nothing, detailed prices do.
-app.get("/search", (req, res) => {
-  res.json({ query: req.query.q || "", results: ["SunVolt Supply", "BrightGrid", "Helios Depot"], demo: true });
-});
+  return async (req, res, next) => {
+    // Never serve a paid handler when the x402 route does not match.
+    if (!httpServer.requiresPayment({ path: req.path, method: req.method })) return res.sendStatus(404);
+    try {
+      // Share discovery across concurrent requests and retry on a later paid request after failure.
+      initialization ??= httpServer.initialize();
+      await initialization;
+    } catch {
+      initialization = undefined;
+      return unavailable(req, res);
+    }
+    Promise.resolve(middleware(req, res, next)).catch(next);
+  };
+}
 
-// ── Auth routes ────────────────────────────────────────────
-app.use("/api", authRouter);
+export function createApp(settings = config) {
+  const { usdc, network } = settings;
+  const app = express();
 
-// ── Console ────────────────────────────────────────────────
-// [rest of console code]
+  app.use("/paid", (req, res, next) => {
+    res.on("finish", () => {
+      const label = { 402: "402 → payment required", 200: "200 → paid, data sent" }[res.statusCode] ?? res.statusCode;
+      console.log(`${new Date().toLocaleTimeString()}  ${req.method} ${req.originalUrl}  ${label}`);
+    });
+    next();
+  });
+  app.use("/paid", paidRequests(settings));
 
-app.listen(config.port, () => {
-  console.log(`\nPaid API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);
-  console.log(`Try:  npm run peek   (shows the 402 for /paid/sun-forecast)\n`);
-});
-// Global error handler for all routes
-app.use((error, req, res, next) => {
-  errorHandler(error, req, res, next);
-});
+  // ── Paid routes (demo data: fixed sample values, marked demo: true) ──
+  const where = (req) => String(req.query.location || "your area").slice(0, 80);
 
-// ── Console ──────────────────────────────────────────────
-// [rest of console code]
+  app.get("/paid/sun-forecast", (req, res) => {
+    res.json({ location: where(req), sunHours: 6.5, cloudCover: "25%", rainChance: "10%",
+               verdict: "Good conditions for solar output and rooftop installation", demo: true });
+  });
 
-app.listen(config.port, () => {
-  console.log(`\nPaid API on http://localhost:${config.port}  ·  ${network}  ·  facilitator: ${fac.name}`);
-  console.log(`Try:  npm run peek   (shows the 402 for /paid/sun-forecast)\n`);
-});
+  app.get("/paid/installers", (req, res) => {
+    res.json({
+      location: where(req),
+      installers: [
+        { name: "Apex Solar Installs",  rating: 4.8, nextAvailable: "in 2 days", priceFromUsd: 250 },
+        { name: "GreenRoof Energy",     rating: 4.5, nextAvailable: "tomorrow",  priceFromUsd: 220 },
+        { name: "PowerUp Technicians",  rating: 4.2, nextAvailable: "in 5 days", priceFromUsd: 180 },
+      ],
+      demo: true,
+    });
+  });
+
+  app.get("/paid/supplier-prices", (_req, res) => {
+    res.json({
+      product: "5kVA hybrid solar inverter",
+      currency: "USD",
+      suppliers: [
+        { name: "SunVolt Supply", price: 780, inStock: true },
+        { name: "BrightGrid",     price: 705, inStock: true },
+        { name: "Helios Depot",   price: 745, inStock: false },
+      ],
+      demo: true,
+    });
+  });
+
+  app.get("/paid/market-report", (_req, res) => {
+    res.json({ title: "Residential Solar Market Report", pages: 42, summary: "…", demo: true });
+  });
+
+  // ── Free routes ────────────────────────────────────────────
+  // What's on sale and for how much, so the agent and the console can show it.
+  app.get("/catalog", (_req, res) => {
+    res.json({
+      network: network || "stellar:testnet",
+      asset: usdc.code || "USDC",
+      routes: Object.entries(PAID_ROUTES).map(([route, { price, description }]) => {
+        const [method, path] = route.split(" ");
+        return { method, path: `/paid${path}`, priceUsd: price, description };
+      }),
+    });
+  });
+
+  // A free step for the agent: finding suppliers costs nothing, detailed prices do.
+  app.get("/search", (req, res) => {
+    res.json({ query: req.query.q || "", results: ["SunVolt Supply", "BrightGrid", "Helios Depot"], demo: true });
+  });
+
+  // ── Auth routes ────────────────────────────────────────────
+  app.use("/api", createAuthRouter());
+
+  app.use("/api", moneyRouter);
+
+  app.use((error, req, res, next) => {
+    if (res.headersSent) return next(error);
+    const status = error.status || (error.message === "Invalid credentials" ? 401 : 400);
+    res.status(status).json({ error: status >= 500 ? "Internal server error" : error.message });
+  });
+  return app;
+}
+
+const app = createApp();
+export default app;
+
+export function startServer(port = config.port) {
+  const server = app.listen(port, () => {
+    console.log(`PayShare API on http://localhost:${server.address().port}`);
+  });
+  return server;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  startServer();
+}

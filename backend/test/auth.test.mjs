@@ -1,22 +1,35 @@
-// Auth endpoint tests
+import { after, before, beforeEach, describe, it } from "node:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { assert } from "chai";
 import request from "supertest";
-import app from "../src/server.mjs";
 
-// Wait for server to be ready
+let directory;
+let usersFile;
+let createApp;
 let server;
-
-before(() => {
-  server = app.listen(0);
+const register = () => request(server).post("/api/register").send({
+  name: "Test User",
+  email: "test@example.com",
+  role: "worker",
+  password: "password123",
 });
 
-after(() => {
-  server.close();
+before(async () => {
+  directory = await mkdtemp(join(tmpdir(), "payshare-auth-"));
+  usersFile = join(directory, "users.json");
+  process.env.PAYSHARE_USERS_FILE = usersFile;
+  ({ createApp } = await import("../src/server.mjs"));
 });
 
-beforeEach(() => {
-  // Clear users before each test
-  // In a real test, we'd use a test database
+beforeEach(async () => {
+  await rm(usersFile, { force: true });
+  server = createApp();
+});
+
+after(async () => {
+  if (directory) await rm(directory, { recursive: true, force: true });
 });
 
 describe('Auth API', () => {
@@ -30,7 +43,7 @@ describe('Auth API', () => {
           role: 'worker',
           password: 'password123',
         });
-      
+
       assert.equal(res.status, 201);
       assert.exists(res.body.id);
       assert.equal(res.body.email, 'test@example.com');
@@ -39,13 +52,8 @@ describe('Auth API', () => {
 
     it('should fail with duplicate email', async () => {
       // Register first
-      await request(server).post('/api/register').send({
-        name: 'Test User',
-        email: 'test@example.com',
-        role: 'worker',
-        password: 'password123',
-      });
-      
+      assert.equal((await register()).status, 201);
+
       // Try again
       const res = await request(server)
         .post('/api/register')
@@ -55,7 +63,7 @@ describe('Auth API', () => {
           role: 'worker',
           password: 'password123',
         });
-      
+
       assert.equal(res.status, 400);
       assert.include(res.body.error, 'already registered');
     });
@@ -69,7 +77,7 @@ describe('Auth API', () => {
           role: 'worker',
           password: 'short', // Too short
         });
-      
+
       assert.equal(res.status, 400);
     });
   });
@@ -77,56 +85,48 @@ describe('Auth API', () => {
   describe('POST /api/login', () => {
     it('should login with valid credentials', async () => {
       // Register first
-      await request(server).post('/api/register').send({
-        name: 'Test User',
-        email: 'test@example.com',
-        role: 'worker',
-        password: 'password123',
-      });
-      
+      assert.equal((await register()).status, 201);
+
       const res = await request(server)
         .post('/api/login')
         .send({
           email: 'test@example.com',
           password: 'password123',
         });
-      
+
       assert.equal(res.status, 200);
       assert.exists(res.body.id);
       assert.equal(res.body.email, 'test@example.com');
     });
 
     it('should fail with wrong password', async () => {
+      assert.equal((await register()).status, 201);
       const res = await request(server)
         .post('/api/login')
         .send({
           email: 'test@example.com',
           password: 'wrongpassword',
         });
-      
+
       assert.equal(res.status, 401);
       assert.include(res.body.error, 'Invalid credentials');
     });
 
     it('should rate limit login attempts', async () => {
       // Register first
-      await request(server).post('/api/register').send({
-        name: 'Test User',
-        email: 'test@example.com',
-        role: 'worker',
-        password: 'password123',
-      });
-      
-      // Try 6 failed logins (limit is 5)
-      for (let i = 0; i < 6; i++) {
-        await request(server)
+      assert.equal((await register()).status, 201);
+
+      // The first five attempts fail authentication. The sixth is rate limited.
+      for (let i = 0; i < 5; i++) {
+        const attempt = await request(server)
           .post('/api/login')
           .send({
             email: 'test@example.com',
             password: 'wrongpassword',
           });
+        assert.equal(attempt.status, 401);
       }
-      
+
       // 6th attempt should be rate limited
       const res = await request(server)
         .post('/api/login')
@@ -134,7 +134,7 @@ describe('Auth API', () => {
           email: 'test@example.com',
           password: 'wrongpassword',
         });
-      
+
       assert.equal(res.status, 429);
     });
   });
@@ -147,11 +147,11 @@ describe('Auth API', () => {
         role: 'worker',
         password: 'password123',
       });
-      
+
       const res = await request(server)
         .post('/api/forgot')
         .send({ email: 'forgot@example.com' });
-      
+
       assert.equal(res.status, 200);
       assert.exists(res.body.success);
     });
@@ -160,11 +160,11 @@ describe('Auth API', () => {
       const res = await request(server)
         .post('/api/forgot')
         .send({ email: 'nonexistent@example.com' });
-      
+
       assert.equal(res.status, 200);
       assert.exists(res.body.success);
       // Should not reveal if email exists
-      assert.notInclude(res.body, 'user');
+      assert.notProperty(res.body, 'user');
     });
   });
 
@@ -173,7 +173,7 @@ describe('Auth API', () => {
       const res = await request(server)
         .post('/api/verify')
         .send({ code: '123456' });
-      
+
       assert.equal(res.status, 200);
       assert.exists(res.body.success);
     });
@@ -182,7 +182,7 @@ describe('Auth API', () => {
       const res = await request(server)
         .post('/api/verify')
         .send({ code: '123' });
-      
+
       assert.equal(res.status, 400);
     });
   });

@@ -15,6 +15,7 @@ if (publicPort === apiPort) {
 process.env.PORT = apiPort;
 process.env.CONSOLE_PORT = publicPort;
 
-// Dynamic imports, so the ports above are set before config.mjs reads them.
-await import("../src/server.mjs");
+// Dynamic imports, so the ports above are set before the app reads them.
+const { startServer } = await import("../src/server.mjs");
+startServer();
 await import("../src/console/app.mjs");

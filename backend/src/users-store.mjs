@@ -2,8 +2,9 @@
 // Passwords are never stored directly; only the hash is kept. Password is set
 // during registration and verified during login. Password is never logged.
 
-import { randomUUID } from "node:crypto";
-import { readFile, writeFile, fileExists, deleteFile, renameFile } from "./file-helpers.mjs";
+import { randomUUID, pbkdf2Sync, timingSafeEqual } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
 
 const USERS_FILE = path.resolve(process.env.PAYSHARE_USERS_FILE || "users.json");
 const SALT_ROUNDS = 10;
@@ -12,18 +13,19 @@ const emptyUsers = () => ({});
 
 // Hash password using PBKDF2 (built-in Node.js, no extra deps)
 // Returns: { salt, hash } as hex strings
-const hashPassword = (password) => {
+export const hashPassword = (password) => {
   const salt = randomUUID().substring(0, 16);
-  const hash = require("crypto").pbkdf2Sync(password, salt, SALT_ROUNDS, 64, "sha256");
+  const hash = pbkdf2Sync(password, salt, SALT_ROUNDS, 64, "sha256");
   return {
     salt,
     hash: hash.toString("hex"),
   };
 };
 
-const verifyPassword = (password, salt, storedHash) => {
-  const hash = require("crypto").pbkdf2Sync(password, salt, SALT_ROUNDS, 64, "sha256");
-  return hash.toString("hex") === storedHash;
+export const verifyPassword = (password, salt, storedHash) => {
+  const hash = pbkdf2Sync(password, salt, SALT_ROUNDS, 64, "sha256");
+  const expected = Buffer.from(storedHash, "hex");
+  return expected.length === hash.length && timingSafeEqual(hash, expected);
 };
 
 const validateUser = (user) => {
@@ -42,7 +44,7 @@ const validateUser = (user) => {
 export function readUsers() {
   let saved;
   try {
-    saved = JSON.parse(await readFile(USERS_FILE));
+    saved = JSON.parse(readFileSync(USERS_FILE, "utf8"));
   } catch {
     saved = emptyUsers();
   }
@@ -50,7 +52,7 @@ export function readUsers() {
 }
 
 export function writeUsers(users) {
-  await writeFile(USERS_FILE, JSON.stringify(users, null, 2), { flag: "wx", mode: 0o600 });
+  writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), { mode: 0o600 });
 }
 
 export function createUser({ name, email, role, stellarAddress, password }) {

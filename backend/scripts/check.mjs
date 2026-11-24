@@ -30,6 +30,9 @@ async function checkWallet(label, pub, { isAgent }) {
 }
 
 async function checkFacilitator() {
+  if (!fac.name || !fac.url) {
+    return fail("No facilitator configured", "Set FACILITATOR and the matching URL in .env");
+  }
   console.log(`\nFacilitator (${fac.name}) ${fac.url}`);
   if (fac.keyUrl && !fac.apiKey)
     return fail(`FACILITATOR_${fac.name.toUpperCase()}_API_KEY is empty`, `free key: ${fac.keyUrl}`);

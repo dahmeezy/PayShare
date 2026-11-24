@@ -28,5 +28,9 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "openai": "7.55.0"
+  },
+  "devDependencies": {
+    "chai": "^6.3.0",
+    "supertest": "^7.3.2"
   }
 }
