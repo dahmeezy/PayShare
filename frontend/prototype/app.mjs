@@ -650,7 +650,7 @@ function wireScreen(route) {
   if (route === "a06" && !live) installInvite();
   if (!live) restoreMockFields(screen, route);
   if (container) container.setAttribute("aria-label", cleanName(frame.name));
-  if (roleFor(route) && !screen.querySelector('[data-layer="Bottom nav"]')) {
+  if (roleFor(route) && !screen.classList.contains("phone") && !screen.querySelector('[data-layer="Bottom nav"]')) {
     const menu = element("button", roles[role].label + " menu");
     menu.className = "compact-role-menu";
     menu.addEventListener("click", showRoleMenu);
@@ -695,8 +695,12 @@ async function render() {
     const template = document.createElement("template");
     template.innerHTML = html;
     const viewRole = roleFor(view.route);
-    const borrowNav = narrow.matches && !hideChrome && view.width > 420 && viewRole &&
-      !template.content.querySelector('[data-layer="Bottom nav"]');
+    const ownBottomNav = template.content.querySelector('[data-layer="Bottom nav"]');
+    const ownBackButton = template.content.querySelector('[data-layer="Back"], [data-layer="Close"], [data-layer="icon/arrow-left"], [data-layer="icon/x"]');
+    // Desktop-only frames always get the tab bar on phones; phone frames get it unless they already
+    // have their own navigation (a tab bar, or a back/close button on a detail screen).
+    const borrowNav = narrow.matches && !hideChrome && viewRole && !ownBottomNav &&
+      (view.width > 420 || !ownBackButton);
     const navHtml = borrowNav ? await phoneNavigation(viewRole) : "";
     if (version !== renderVersion) return;
     screen.replaceChildren(template.content);
