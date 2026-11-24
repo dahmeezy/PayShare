@@ -142,6 +142,11 @@ export function createApp(settings = config, payment = {}) {
     res.json({ query: req.query.q || "", results: ["SunVolt Supply", "BrightGrid", "Helios Depot"], demo: true });
   });
 
+  // Health check for the hosting platform: the process is up and serving requests.
+  app.get("/healthz", (_req, res) => {
+    res.set("Cache-Control", "no-store").json({ status: "ok", uptimeSeconds: Math.round(process.uptime()) });
+  });
+
   // ── Auth routes ────────────────────────────────────────────
   app.disable("x-powered-by");
   app.get("/", (_req, res) => res.redirect("/frontend/prototype.html?app=1"));

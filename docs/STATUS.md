@@ -65,18 +65,18 @@ Legend for "Owner": A = users/projects/tasks/reviews/notifications side, B = mon
 | In-app notifications, bell, unread | Missing | UI: "Notification delivery is unavailable." (`live.mjs:401`) | Add |
 | WhatsApp | Missing | Screens only; no delivery | Link-based messages are not sent (documented) |
 | Dashboards (three roles) | Done | `live-dashboard.mjs`, `review/live-*.webp` | not visually verified |
-| Responsive 1440/1024/390/360 | Partial | Prototype CSS has breakpoints | verify in Step 6 |
+| Responsive 360–2560 | Done | Full-width layout, phone tab bar; `frontend/test/mvp.cjs` checks 360–1920 px | none |
 | Dark theme, theme switch, Settings | Partial | Theme toggle exists in `app.mjs`; Settings screens exist but text size/language are inert | Document |
 | Empty, loading, error states | Partial | `aria-busy` on actions, empty states in live layer | Spot-check |
 
 ## Deployment
 | Item | State | Evidence | Needed |
 |---|---|---|---|
-| Health endpoint | Missing | none | Add |
-| Dockerfile / platform config | Missing | none | Add |
+| Health endpoint | Done | `GET /healthz`, `backend/test/health.test.mjs` | none |
+| Dockerfile / platform config | Done | `railway.json` (Railway, auto-deploy from main), `render.yaml` | none |
 | Seed script for sample project | Missing | none | Add |
 | `.env.example` | Partial | `backend/.env.example` is the workshop one with secrets as empty names | Add app-focused example |
-| docs/DEPLOY.md | Missing | README has a hosting handoff section | Add |
+| Deployment guide | Done | README → Deployment (Railway) | none |
 | CI | Done | `.github/workflows/ci.yml` | none |
 
 ## Branch log

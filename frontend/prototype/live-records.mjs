@@ -60,6 +60,10 @@ export function bindProjects(screen, route, data) {
   const content = layer(screen, "Content");
   const { projects, project, selectedTasks } = data;
   if (["c02", "d02"].includes(route)) {
+    const completed = p => p.tasks.length > 0 && p.tasks.every(t => t.payout?.status === "paid");
+    const draft = p => !completed(p) && !(Number(p.funded) > 0);
+    chips(content, [projects.length, projects.filter(p => !completed(p) && !draft(p)).length,
+      projects.filter(draft).length, projects.filter(completed).length]);
     table(layer(content, "Projects table") || content, projects, p => [
       route === "c02" ? [p.name, new Set(p.tasks.map(t => t.workerId)).size + " workers · " + p.tasks.length + " tasks"] : p.name,
       p.members?.filter(x => x.role === (route === "c02" ? "client" : "contractor")).map(x => [initials(x.name), x.name])[0] || ["—", "Not linked"],

@@ -216,13 +216,15 @@ async function main() {
     await route(worker, mobile ? "mw10" : "w12");
     await worker.getByText("Simulated", { exact: true }).first().waitFor();
     assert.equal(await worker.getByRole("link", { name: "View verified transaction" }).count(), 0);
-    for (const width of [360, 390, 768, 1024, 1440]) {
+    for (const width of [360, 390, 430, 768, 1024, 1440, 1920]) {
       for (const [page, role] of [[client, "d"], [contractor, "c"], [worker, "w"]]) {
         await page.setViewportSize({ width, height: 900 });
         await page.goto(origin + "/");
         await route(page, (width < 768 ? "m" : "") + role + "01");
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
           `${role} overflows at ${width}px`);
+        assert.ok(await page.evaluate(() => { const box = document.querySelector("#screen").getBoundingClientRect(); return box.left === 0 && Math.round(box.width) === innerWidth; }),
+          `${role} does not fill the screen at ${width}px`);
         const nav = width < 768 ? "Bottom nav" : "Sidebar";
         assert.equal(await page.locator('#screen [data-layer="' + nav + '"] img').count() > 0, true);
       }
@@ -252,7 +254,7 @@ async function main() {
     assert.deepEqual(browserErrors, []);
     assert.deepEqual(badAssets, []);
     console.log((mobile ? "Mobile" : "Desktop") + " browser MVP passed: three roles, invitations, funding, expense, budget, assignment, submission, approval, simulation, refresh and sign-out.");
-    console.log("All three dashboards fit at 360, 390, 768, 1024 and 1440 px. No browser exceptions or broken frontend assets.");
+    console.log("All three dashboards fill the screen at 360, 390, 430, 768, 1024, 1440 and 1920 px. No browser exceptions or broken frontend assets.");
   } catch (error) {
     if (process.env.PAYSHARE_BROWSER_DEBUG) {
       for (const page of pages) {
