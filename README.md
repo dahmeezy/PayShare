@@ -21,17 +21,17 @@ npm.cmd start
 
 Open [PayShare](http://localhost:4021/). On macOS or Linux, use `cd backend` and `npm` in place of `npm.cmd`. The first run creates a workspace history file. Run `npm start` for later sessions. Local simulation requires no `.env` file, facilitator or OpenAI key. An existing workspace or `.env` is kept intact.
 
-The [Figma preview](http://localhost:4021/frontend/prototype.html) still includes the original sample screens and theme variants. Enter through the server root for the connected app. The original agent workshop console is available separately with `npm run workshop` in a fully configured workshop environment.
+The server root opens the original Figma screens with live account and project data. The original workshop console remains available separately with `npm run workshop` in a fully configured workshop environment.
 
 ## Five-minute demo
 
-1. In a browser window, register as a **client**. Create a project in **Simulation** mode with a budget of 100 USDC and record 100 USDC in simulated funding.
-2. Create a contractor invitation. Copy the private link into a separate browser profile. Register with the invited email and accept. Set contractor compensation to 10 USDC and record a 5 USDC expense.
-3. As the contractor, create a worker invitation. Open it in another browser profile, register with the invited email, and accept. The invitation sets the account role. Use **Your profile** to edit the display name or public Stellar wallet.
-4. Refresh the contractor’s project. Assign the worker a task with a 45 USDC allocation and choose **Require client confirmation**. As the worker, refresh, open the task and submit a short note or deliverable link.
-5. As the contractor, refresh, review and approve. As the client, refresh and confirm the deliverable. The contractor can now refresh and choose **Run payout simulation**. Refresh the worker view to see the saved result labeled **Simulated payout · No funds moved**. The worker sees their own tasks and payments.
+1. Register as a **client**. Complete onboarding, then choose **Fund a project** from the dashboard. Create a project in **Simulation** mode with a budget of 100 USDC and record 100 USDC in simulated funding.
+2. Choose **Invite contractor** on the funding or financial breakdown screen. Copy the private link into a separate browser profile. Register with the invited email and accept the invitation. From the contractor dashboard, open **View budget**, choose **Manage budget** to set compensation to 10 USDC, then **Add expense** to record a 5 USDC expense.
+3. Open **Invite worker** on the contractor dashboard. Share the link with another browser profile. Register as the invited worker and accept. The invitation sets the account role. The profile screen lets workers edit their name and public payout wallet.
+4. From the contractor dashboard, choose **Create task**. Assign a worker, enter a 45 USDC allocation, and select **Require client confirmation**. As the worker, open the task from **My tasks**, choose **Submit work**, and enter a note or deliverable link.
+5. The contractor opens **Review submissions** and approves the work. The client opens **Review & confirm** on their dashboard and confirms the deliverable. The contractor opens **Approvals**, chooses **Authorize payout**, then **Run payout simulation**. The worker opens **Payment history** to see **Simulated · No funds moved**. Reopen or refresh a screen to see changes saved from another account.
 
-Use separate browser profiles instead of tabs because each profile has one account session. PayShare creates private links for manual sharing. It does not send them.
+Use separate browser profiles because each profile has one account session. PayShare creates private links for manual sharing. It does not send them. Compare the connected dashboards with the Figma frames in the [visual review](frontend/review/connected-dashboard-review.md).
 
 ## Payments and optional configuration
 
@@ -79,7 +79,7 @@ Backend tests cover session and role checks, invitation reuse, funding limits, a
 
 - Email ownership verification, password recovery and automatic message delivery require an external delivery service. They are disabled and labeled in the app.
 - Task submissions store text or a link. The app does not host attachments. Team members manually refresh project data to see updates from other accounts.
-- The connected dashboard covers the core project flow. Secondary Figma screens remain in the design preview.
+- The connected app uses the original Figma frames. Features without an API, such as allocation change requests, attachments and voice notes, display an availability message.
 - Run one application instance with write access to both data files. Keep backups together and restrict file access. If payment history is missing or damaged, restore and reconcile it before resuming. The initializer is for a new workspace.
 - Build with Node.js 22 or newer and `npm ci` from `backend`. Start with `npm start` and publish its `PORT` behind HTTPS. Deploy from a checkout containing both `backend` and `frontend` because Express serves the bundled Figma assets. Enable secure cookies and mount the two persistent files. Enable testnet payments only once the configured facilitator and wallets are ready.
 

@@ -33,7 +33,7 @@ const [frames, authoring] = await Promise.all(["screens.json", "reactions.json"]
 });
 const index = new Map(frames.map(view => [view.route, view]));
 const authored = authoredRoutes(authoring);
-const live = liveMode ? liveApplication({ screen, goto, render, roles, roleFor, switchTheme: () => switchTheme() }) : null;
+const live = liveMode ? liveApplication({ screen, render, roles, roleFor, announce }) : null;
 if (live) await live.start();
 
 function announce(message) {
@@ -53,7 +53,7 @@ function cleanName(name) {
 function href(route) { return "#/" + route; }
 function goto(route) {
   if (route === "@home") route = roles[role].home;
-  if (index.has(route) || route === "reset-password") location.hash = href(route);
+  if (index.has(route) || route === "reset-password") location.hash = live?.hash(route) || href(route);
 }
 function labelOf(node) {
   return node.innerText.trim().replace(/\s+/g, " ");
@@ -153,8 +153,11 @@ function installSearch(node) {
     if (event.key !== "Enter") return;
     event.stopPropagation();
     if (node.closest('[data-layer="Top bar"], [data-layer="App bar"]')) {
-      search.value = input.value;
-      showCatalog(role);
+      if (live) live.search(input.value);
+      else {
+        search.value = input.value;
+        showCatalog(role);
+      }
     } else runFilter();
   });
   text.replaceWith(input);
@@ -281,6 +284,15 @@ function demoAction(button, label, route, layer, scope) {
 }
 
 function showSettings(title = "Settings") {
+  if (live) return openDialog(title, dialog => {
+    for (const [label, run] of [["Profile", () => live.openProfile()], ["Switch theme", () => switchTheme()],
+      ["Sign out", () => live.logout()]]) {
+      const button = element("button", label);
+      button.className = "demo-dialog-button";
+      button.addEventListener("click", () => { dialog.close(); run(); });
+      dialog.append(button);
+    }
+  });
   return openDialog(title, dialog => {
     dialog.append(element("p", roles[role].label + " demo preferences"));
     const theme = element("button", dark ? "Use light theme" : "Use dark theme");
@@ -354,6 +366,8 @@ function installAction(node, label, route) {
     if (button.closest("[inert]")) return;
     const modal = screen.querySelector('[data-layer="Modal"]');
     const scope = modal || screen;
+    if (live && /^a0[23]$/.test(route) && submits && focusInvalid(scope)) return;
+    if (live?.handle(button, label, route, scope, target, layer)) return;
     if (target === "@verify") {
       if (verifyCode?.()) {
         const next = verificationPurpose === "reset" ? "reset-password" : verificationPurpose === "login" ? "@home" : "a07";
@@ -368,7 +382,6 @@ function installAction(node, label, route) {
       const verifyScope = codeLogin ? screen.querySelector('[data-layer="Input"]') : scope;
       if (focusInvalid(verifyScope || scope)) return;
     }
-    if (live?.handle(button, label, route, scope)) return;
     if (target === "@join-invite") {
       role = "worker";
       savePreference("role", role);
@@ -597,8 +610,8 @@ function wireScreen(route) {
       });
     }
   }
-  if (route === "a06") installInvite();
-  restoreMockFields(screen, route);
+  if (route === "a06" && !live) installInvite();
+  if (!live) restoreMockFields(screen, route);
   if (container) container.setAttribute("aria-label", cleanName(frame.name));
   if (roleFor(route) && !screen.querySelector('[data-layer="Bottom nav"]')) {
     const menu = element("button", roles[role].label + " menu");
@@ -611,7 +624,7 @@ function wireScreen(route) {
 async function render() {
   if (!index.size) return;
   const version = ++renderVersion;
-  const requested = location.hash.match(/^#\/([\w-]+)$/)?.[1] || "a01";
+  const requested = location.hash.match(/^#\/([\w-]+)(?:\?.*)?$/)?.[1] || "a01";
   const route = live?.route(requested) || requested;
   const reset = route === "reset-password";
   const wanted = reset ? "a04" : index.has(route) ? route : "a01";
@@ -639,6 +652,7 @@ async function render() {
     const response = await fetch(new URL("views/" + view.route + ".html", import.meta.url));
     if (!response.ok) throw new Error("This demo screen is temporarily unavailable.");
     const html = await response.text();
+    await live?.prepare(reset ? route : view.route);
     if (version !== renderVersion) return;
     const template = document.createElement("template");
     template.innerHTML = html;
@@ -648,7 +662,7 @@ async function render() {
     });
     wireScreen(screen.dataset.route);
     live?.install(screen.dataset.route);
-    if (!hideChrome && screen.classList.contains("sample-payment")) {
+    if (!live && !hideChrome && screen.classList.contains("sample-payment")) {
       const banner = element("p", demoMessages.payment);
       banner.className = "payment-note";
       screen.prepend(banner);
@@ -695,7 +709,7 @@ function showCatalog(scope = "", phrase = search.value) {
 function switchTheme(next = !dark) {
   dark = next;
   savePreference("theme", dark ? "dark" : "light");
-  const current = location.hash.match(/^#\/([\w-]+)$/)?.[1];
+  const current = location.hash.match(/^#\/([\w-]+)(?:\?.*)?$/)?.[1];
   if (current?.endsWith("-dark")) goto(current.replace(/-dark$/, ""));
   else render();
   announce(dark ? "Dark theme" : "Light theme");

@@ -1,0 +1,49 @@
+.workspace-live #demo { display: none; }
+.workspace-live [data-live-route], .workspace-live [data-live-external] { cursor: pointer; }
+.workspace-live [data-live-route]:focus-visible, .workspace-live [data-live-external]:focus-visible {
+  outline: 2px solid var(--color-input-focus, #159a83);
+  outline-offset: 2px;
+}
+.workspace-live .live-note, .workspace-live .live-message {
+  font: 400 14px/1.5 var(--font-family, sans-serif);
+  color: var(--figma-color-text-secondary-475569, #475569);
+  padding-block: 4px;
+  overflow-wrap: anywhere;
+}
+.workspace-live .live-note { width: 100%; }
+.workspace-live .appearance-dark :is(.live-note, .live-message) { color: #b7c9dc; }
+.workspace-live .live-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: min(100%, 28rem);
+  font: 600 14px/1.5 var(--font-family, sans-serif);
+}
+.workspace-live .live-input {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+.workspace-live .live-field .live-input, .workspace-live dialog .live-input {
+  color: var(--color-brand-deep-navy);
+  background: var(--color-surface-white);
+  border: 1px solid var(--color-input-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  width: 100%;
+}
+.workspace-live .live-outline {
+  color: var(--figma-color-text-brand-0f7f6c, #0f7f6c);
+  border: 1px solid var(--figma-color-border-default-e2e8f0, #e2e8f0);
+}
+.workspace-live .live-status { white-space: normal; }
+.workspace-live .live-status[data-live-tone="good"] { color: #0f7f6c; }
+.workspace-live .live-status[data-live-tone="warning"] { color: #a05c06; }
+.workspace-live .appearance-dark .live-status[data-live-tone="good"] { color: #8ce7d4; }
+.workspace-live .appearance-dark .live-status[data-live-tone="warning"] { color: #ffd38a; }
+.workspace-live [aria-busy="true"].demo-action { opacity: .6; cursor: wait; }
+.workspace-live [data-layer="App bar"] .live-outline { flex-shrink: 0; }
+.workspace-live .hidden-live-sample { display: none !important; }
