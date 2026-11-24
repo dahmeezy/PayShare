@@ -209,3 +209,67 @@ a { color: inherit; text-decoration: none; }
 
 #screen [data-layer="Code"] > [data-layer="box"] { border-width: 1px; }
 #screen .demo-choice-input { width: 22px; height: 22px; margin: 0; inset-inline-start: 0; z-index: 1; cursor: pointer; }
+
+/* ── Full-screen layout ─────────────────────────────────────────────
+   Every screen fills the device edge to edge, as in the Figma frames.
+   Frames are authored at 1440px (desktop) and 390px (phone); here they
+   stretch to the real viewport instead of sitting centred with empty
+   bands on either side. */
+html, body { min-height: 100%; }
+body { overflow-x: hidden; }
+#screen, #screen.desktop, #screen.phone { width: 100%; max-width: none; margin-inline: 0; }
+#screen > [data-figma] { min-height: 100vh; min-height: 100dvh; }
+#screen.desktop [data-layer="Brand panel"], #screen.desktop [data-layer="Form side"] { height: auto; min-height: 100vh; min-height: 100dvh; }
+#screen.desktop [data-layer="Sidebar"] { position: sticky; top: 0; max-height: 100vh; max-height: 100dvh; overflow-y: auto; }
+
+/* Phone: compact landing header (logo + primary actions on one row). */
+@media (max-width: 767px) {
+  #screen.desktop [data-layer="Nav"] { flex-wrap: nowrap; justify-content: space-between; }
+  #screen.desktop [data-layer="Nav"] > :is([data-layer="sp"], button.demo-action) { display: none; }
+  #screen.desktop [data-layer="Nav"] > :first-child { margin-inline-end: auto; }
+  #screen.desktop [data-layer="Nav"] > [data-layer="Button"] { padding-inline: 12px; }
+  #screen.desktop [data-layer="Product preview"] [data-layer] { min-width: 0; }
+  #screen.desktop [data-layer="Product preview"] p { white-space: normal; }
+  #screen.phone [data-layer="Bottom nav"] { position: sticky; bottom: 0; z-index: 3; width: 100%; }
+}
+
+/* Phones: the device draws its own status bar, so the Figma mock one is hidden. */
+@media (max-width: 767px) {
+  #screen.phone [data-layer="Status bar"] { display: none; }
+  #screen.phone [data-layer="App bar"] { padding-top: max(12px, env(safe-area-inset-top)); }
+  #screen.has-tab-bar { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  #screen.has-tab-bar > [data-figma] { min-height: calc(100dvh - 84px); }
+  #screen .mobile-tab-bar {
+    position: fixed; inset-inline: 0; bottom: 0; top: auto; z-index: 5; width: 100%;
+    height: auto; min-height: 0 !important; margin: 0;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    box-shadow: 0 -1px 0 var(--figma-color-border-default-e2e8f0, #e2e8f0);
+  }
+  #screen.phone [data-layer="Bottom nav"] { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  #screen.has-tab-bar .compact-role-menu { display: none; }
+  #screen.desktop [data-layer="Top bar"] { position: sticky; top: 0; z-index: 4; }
+}
+@media (max-width: 767px) {
+  .mobile-tab-bar [data-layer="Bottom nav item"]:not([aria-current]) img { filter: grayscale(1) brightness(1.15); }
+  .mobile-tab-bar [data-layer="Bottom nav item"][aria-current] img {
+    filter: brightness(0) saturate(100%) invert(35%) sepia(76%) saturate(522%) hue-rotate(127deg) brightness(91%) contrast(92%);
+  }
+  #screen.has-tab-bar [data-layer="Top bar"] { flex-wrap: nowrap; gap: 8px; }
+  #screen.has-tab-bar [data-layer="Top bar"] [data-layer="Search field"] { flex: 1 1 auto; min-width: 0; width: auto; }
+  #screen.has-tab-bar [data-layer="Top bar"] > :not([data-layer="Search field"]) { flex-shrink: 0; }
+}
+
+/* Tablets and small laptops: even card grid, labels wrap instead of clipping. */
+@media (max-width: 1200px) {
+  #screen.desktop [data-layer^="Stats"]:has(> [data-layer="Stat card"]) {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: 16px;
+  }
+  #screen.desktop [data-layer^="Stats"] > [data-layer="Stat card"] { width: auto; min-width: 0; padding-inline: 18px; }
+  #screen.desktop [data-layer="Stat card"] p { white-space: normal; overflow-wrap: break-word; }
+  #screen.desktop [data-layer="Stat card"] > [data-layer="Top"] { gap: 8px; align-items: flex-start; }
+  #screen.desktop [data-layer="Stat card"] > [data-layer="Top"] > p { flex: 1 1 0; min-width: 0; width: auto; overflow-wrap: normal; hyphens: auto; }
+  #screen.desktop [data-layer="Stat card"] > [data-layer="Top"] > :not(p) { flex-shrink: 0; }
+  #screen.desktop [data-layer="Top bar"] { flex-wrap: nowrap; gap: 12px; }
+  #screen.desktop [data-layer="Top bar"] [data-layer="Search field"] { flex: 1 1 auto; min-width: 0; width: auto; }
+  #screen.desktop [data-layer="Top bar"] > :not([data-layer="Search field"]) { flex-shrink: 0; }
+}

@@ -305,6 +305,44 @@ function showSettings(title = "Settings") {
   });
 }
 
+// Phones: screens designed only at desktop size borrow the bottom navigation from the
+// role's Figma phone dashboard, so every mobile screen navigates the same way.
+const phoneDashboards = { contractor: "mc01", worker: "mw01", client: "md01" };
+const phoneTabs = {
+  contractor: [["tasks", /^c(1[89]|2[0-2])$/], ["budget", /^c1[0-4]$/], ["payouts", /^c(2[3-9]|3[01])$/]],
+  worker: [["tasks", /^w0[2-7]$/], ["allocation", /^w(0[89]|10)$/], ["payments", /^w1[12]$/]],
+  client: [["finances", /^d0[345]$/], ["deliverables", /^d0[67]$/], ["payments", /^d0[89]$/]],
+};
+const phoneNavCache = new Map();
+function phoneNavigation(roleName) {
+  const route = phoneDashboards[roleName];
+  if (!route) return Promise.resolve("");
+  if (!phoneNavCache.has(route)) {
+    phoneNavCache.set(route, fetch(new URL("views/" + route + ".html", import.meta.url))
+      .then(response => response.ok ? response.text() : "")
+      .then(html => {
+        const template = document.createElement("template");
+        template.innerHTML = html;
+        return template.content.querySelector('[data-layer="Bottom nav"]')?.outerHTML || "";
+      })
+      .catch(() => ""));
+  }
+  return phoneNavCache.get(route);
+}
+function markPhoneTab(nav, roleName, route) {
+  const base = route.replace(/-(dark|360)$/, "");
+  const current = phoneTabs[roleName]?.find(([, pattern]) => pattern.test(base))?.[0] || "home";
+  for (const item of nav.querySelectorAll('[data-layer="Bottom nav item"]')) {
+    const label = item.querySelector("p");
+    const active = normalize(label?.textContent || "") === current;
+    item.querySelector('[data-layer="Pill"]')?.classList.toggle("f100", active);
+    label?.classList.toggle("f44", active);
+    label?.classList.toggle("f97", !active);
+    if (active) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
+  }
+}
+
 function showRoleMenu() {
   return openDialog(roles[role].label + " navigation", dialog => {
     const nav = element("nav");
@@ -656,7 +694,23 @@ async function render() {
     if (version !== renderVersion) return;
     const template = document.createElement("template");
     template.innerHTML = html;
+    const viewRole = roleFor(view.route);
+    const borrowNav = narrow.matches && !hideChrome && view.width > 420 && viewRole &&
+      !template.content.querySelector('[data-layer="Bottom nav"]');
+    const navHtml = borrowNav ? await phoneNavigation(viewRole) : "";
+    if (version !== renderVersion) return;
     screen.replaceChildren(template.content);
+    screen.classList.toggle("has-tab-bar", Boolean(navHtml));
+    if (navHtml) {
+      const holder = document.createElement("template");
+      holder.innerHTML = navHtml;
+      const nav = holder.content.firstElementChild;
+      nav.classList.add("mobile-tab-bar");
+      nav.setAttribute("role", "navigation");
+      nav.setAttribute("aria-label", roles[viewRole]?.label + " navigation");
+      markPhoneTab(nav, viewRole, view.route);
+      screen.append(nav);
+    }
     screen.querySelectorAll("a[href]").forEach(node => {
       if (!node.getAttribute("href").startsWith("#/")) node.removeAttribute("href");
     });
