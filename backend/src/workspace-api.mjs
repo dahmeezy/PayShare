@@ -5,7 +5,8 @@ import { validEmail } from "./auth-router.mjs";
 import { findInvitation, tokenHash } from "./invitations.mjs";
 import { verifyFundingTransfer, validHash } from "./funding.mjs";
 import { endpoint } from "./money-api.mjs";
-import { checkBudget, payoutTerms } from "./payout-agent.mjs";
+import { agentEntry, checkBudget, payoutChecks, payoutTerms } from "./payout-agent.mjs";
+import { checkPin, hasPin, setPin } from "./payout-pin.mjs";
 import { projectError } from "./project-store.mjs";
 import { requireSession } from "./session.mjs";
 import { getUserById } from "./users-store.mjs";
@@ -24,6 +25,22 @@ function amount(value, minimum = 1) {
   }
   return value;
 }
+
+function date(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(value) || Number.isNaN(Date.parse(value))) throw projectError("Enter a valid deadline date");
+  return value.slice(0, 10);
+}
+// One or many deliverables; none is allowed. Tasks never have mandatory stages.
+function deliverableList(value) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 20) throw projectError("Enter up to 20 deliverables");
+  return value.map(item => text(item, "deliverable", 200));
+}
+// Tasks created before acceptance existed (no acceptedAt key) count as accepted.
+const accepted = task => task.acceptedAt !== null;
+
+// One unique key per approved piece of work: a second payout for it can never be created.
+const paymentKey = (project, task) => createHash("sha256").update(`${project.id}:${task.id}:${task.workerId}:${task.amount}`).digest("hex");
 
 function membership(project, userId) {
   return project.members.find(member => member.id === userId)?.role;
@@ -47,6 +64,8 @@ function publicProject(project, user) {
     return {
       id: task.id, title: task.title, description: task.description, workerId: task.workerId,
       workerName: task.workerName, amount: task.amount, status: task.status, submission: task.submission,
+      criteria: task.criteria, deadline: task.deadline, deliverables: task.deliverables, reassignable: task.reassignable,
+      acceptedAt: task.acceptedAt ?? null, declinedAt: task.declinedAt, submissions: task.submissions ?? (task.submission ? [task.submission] : []),
       clientApprovalRequired: task.clientApprovalRequired, clientApprovedAt: task.clientApprovedAt,
       review: task.review, payout: {
         status, paidAt, error, ...(role === "contractor" && { canReconcile: !!candidateTx }),
@@ -75,7 +94,14 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
   }));
   router.use(requireSession);
 
-  router.get("/capabilities", (_req, res) => res.json({ aiSummary: Boolean(aiStatus), testnet: Boolean(settlement.payer) }));
+  router.get("/capabilities", (req, res) => res.json({
+    aiSummary: Boolean(aiStatus), testnet: Boolean(settlement.payer), payoutPinSet: hasPin(req.user.id),
+  }));
+  router.put("/pin", endpoint(async (req, res) => {
+    if (req.user.role !== "contractor") throw projectError("Only contractors authorize payouts", 403);
+    setPin(req.user.id, req.body?.pin, req.body?.currentPin);
+    res.json({ payoutPinSet: true });
+  }));
 
   router.get("/projects", endpoint(async (req, res) => {
     const state = await readWorkspace();
@@ -183,8 +209,9 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
   }));
 
   router.post(projectPath + "/tasks", mutate(["contractor"], (project, req) => {
-    const { workerId, title, description, allocation, clientApprovalRequired = false } = req.body ?? {};
+    const { workerId, title, description, allocation, clientApprovalRequired = false, criteria, deadline, deliverables, reassignable = false } = req.body ?? {};
     if (typeof clientApprovalRequired !== "boolean") throw projectError("Choose whether client confirmation is required");
+    if (typeof reassignable !== "boolean") throw projectError("Choose whether the task can be reassigned");
     const member = project.members.find(entry => entry.id === workerId && entry.role === "worker");
     if (!member) throw projectError("Choose a worker who accepted the invitation");
     const recipient = getUserById(member.id)?.stellar_address || null;
@@ -194,6 +221,10 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
     const task = {
       id: randomUUID(), title: text(title, "task title"), description: text(description, "task description", 1000),
       workerId, workerName: member.name, recipient, amount: amount(allocation),
+      criteria: criteria ? text(criteria, "acceptance criteria", 1000) : "",
+      deadline: deadline ? date(deadline) : null,
+      deliverables: deliverableList(deliverables),
+      reassignable, acceptedAt: null,
       status: "assigned", clientApprovalRequired, payout: { status: "pending" },
     };
     project.tasks.push(task);
@@ -202,20 +233,45 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
   }));
 
   const taskPath = projectPath + "/tasks/:taskId";
+  // The worker must accept the task and its agreed payment before work starts.
+  router.post(taskPath + "/accept", mutate(["worker"], (project, req) => {
+    const task = taskFor(project, req.params.taskId);
+    if (task.workerId !== req.user.id) throw projectError("Task not found", 404);
+    const decision = req.body?.decision ?? "accept";
+    if (!["accept", "decline"].includes(decision)) throw projectError("Choose whether to accept or decline");
+    if (task.acceptedAt !== null || task.status !== "assigned") throw projectError("This task is no longer awaiting your response", 409);
+    if (decision === "decline") {
+      task.status = "declined";
+      task.declinedAt = now();
+      task.declineReason = req.body?.reason ? text(req.body.reason, "reason", 500) : "";
+      return { status: task.status };
+    }
+    task.acceptedAt = now();
+    task.acceptedAmount = task.amount;
+    return { status: task.status, acceptedAt: task.acceptedAt, amount: task.amount };
+  }));
   router.post(taskPath + "/submission", mutate(["worker"], (project, req) => {
     const task = taskFor(project, req.params.taskId);
     if (task.workerId !== req.user.id) throw projectError("Task not found", 404);
+    if (!accepted(task)) throw projectError("Accept the task and its agreed payment before submitting work", 409);
     if (!["assigned", "rejected"].includes(task.status)) throw projectError("This task is already submitted or approved", 409);
-    task.submission = { notes: text(req.body?.notes, "submission notes", 2000), submittedAt: now() };
+    const links = req.body?.links === undefined ? [] : req.body.links;
+    if (!Array.isArray(links) || links.length > 10 || links.some(link => typeof link !== "string" || !/^https?:\/\/\S{1,500}$/.test(link))) {
+      throw projectError("Enter up to 10 web links that start with http:// or https://");
+    }
+    const entry = { version: (task.submissions?.length ?? 0) + 1, notes: text(req.body?.notes, "submission notes", 2000), links, submittedAt: now() };
+    task.submissions = [...(task.submissions ?? []), entry];
+    task.submission = entry;
     task.status = "submitted";
-    return { status: task.status };
+    return { status: task.status, version: entry.version };
   }));
   router.post(taskPath + "/review", mutate(["contractor"], (project, req) => {
     const task = taskFor(project, req.params.taskId);
     if (task.status !== "submitted") throw projectError("Only submitted work can be reviewed", 409);
     const { decision, notes } = req.body ?? {};
     if (!["approved", "rejected"].includes(decision)) throw projectError("Choose approve or reject");
-    task.review = { notes: notes ? text(notes, "review notes", 1000) : "", reviewedAt: now() };
+    if (decision === "rejected" && !notes) throw projectError("Explain what needs to change");
+    task.review = { notes: notes ? text(notes, "review notes", 1000) : "", reviewedAt: now(), version: task.submission?.version ?? 1 };
     task.status = decision;
     return { status: task.status };
   }));
@@ -229,6 +285,31 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
     return { status: "confirmed" };
   }));
 
+  // Plain-language record of what the payout agent checked and did. Not visible to workers.
+  router.get(projectPath + "/agent-log", endpoint(async (req, res) => {
+    const project = projectFor(await readWorkspace(), req.params.projectId, req.user.id, ["contractor", "client"]);
+    res.json((project.agentLog ?? []).slice().reverse());
+  }));
+  router.get("/receipts", endpoint(async (req, res) => {
+    const state = await readWorkspace();
+    const receipts = [];
+    for (const project of state.projects) {
+      const role = membership(project, req.user.id);
+      if (!role) continue;
+      for (const task of project.tasks) {
+        const { status, tx, paidAt, amount, key } = task.payout;
+        if (!["simulated", "paid"].includes(status) || (role === "worker" && task.workerId !== req.user.id)) continue;
+        receipts.push({
+          id: key, projectId: project.id, projectName: project.name, taskId: task.id, task: task.title, worker: task.workerName,
+          amount, status, demo: status === "simulated", paidAt, transaction: tx ?? null,
+          explorerUrl: status === "paid" ? `https://stellar.expert/explorer/testnet/tx/${tx}` : null,
+          note: status === "simulated" ? "Demo mode. No funds moved." : "Settled on Stellar testnet.",
+        });
+      }
+    }
+    res.json(receipts.sort((a, b) => String(b.paidAt).localeCompare(String(a.paidAt))));
+  }));
+
   router.post(projectPath + "/ai-summary", endpoint(async (req, res) => {
     const project = projectFor(await readWorkspace(), req.params.projectId, req.user.id, ["contractor", "client"]);
     if (!aiStatus) throw projectError("AI summaries are disabled. Project actions still work.", 503);
@@ -240,19 +321,35 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
     if (task.payout.attempt !== attempt || task.payout.candidateTx !== receipt.tx) throw projectError("Payout changed", 409);
     Object.assign(task.payout, receipt, { status: "paid" });
     delete task.payout.error;
+    const project = state.projects.find(entry => entry.id === projectId);
+    (project.agentLog ??= []).push(agentEntry(project, task, "paid", payoutChecks(project, { ...task, payout: { status: "pending" } })));
     return { status: "paid" };
+  });
+
+  const logAgent = (projectId, build) => updateWorkspace(state => {
+    const project = state.projects.find(entry => entry.id === projectId);
+    (project.agentLog ??= []).push(build(project));
   });
 
   router.post(taskPath + "/payout", endpoint(async (req, res) => {
     const { projectId, taskId } = req.params;
     const snapshot = projectFor(await readWorkspace(), projectId, req.user.id, ["contractor"]);
-    const terms = payoutTerms(snapshot, taskFor(snapshot, taskId));
+    const checks = payoutChecks(snapshot, taskFor(snapshot, taskId));
+    let terms;
+    try { terms = payoutTerms(snapshot, taskFor(snapshot, taskId)); }
+    catch (error) {
+      await logAgent(projectId, project => agentEntry(project, taskFor(project, taskId), "blocked", checks));
+      throw error;
+    }
+    // Payment authorization: only the contractor's PIN releases money. A session alone is not enough.
+    checkPin(req.user.id, req.body?.pin);
     if (snapshot.mode === "preview") {
       const payout = await updateWorkspace(state => {
         const project = projectFor(state, projectId, req.user.id, ["contractor"]);
         const task = taskFor(project, taskId);
         const terms = payoutTerms(project, task);
-        task.payout = { status: "simulated", amount: terms.amount, paidAt: now() };
+        task.payout = { status: "simulated", amount: terms.amount, paidAt: now(), key: paymentKey(project, task) };
+        (project.agentLog ??= []).push(agentEntry(project, task, "simulated", checks));
         return task.payout;
       });
       return res.json(payout);
@@ -269,7 +366,7 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
       if (current.amount !== terms.amount || current.recipient !== terms.recipient || current.payer !== terms.payer) {
         throw projectError("Payment terms changed", 409);
       }
-      task.payout = { ...terms, status: "processing", attempt: randomUUID(), startedAt: now() };
+      task.payout = { ...terms, status: "processing", attempt: randomUUID(), startedAt: now(), key: paymentKey(project, task) };
       return task.payout;
     });
     try {
@@ -286,6 +383,9 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
         if (payout.attempt === payment.attempt && payout.status === "processing") {
           payout.status = "failed";
           payout.error = "Settlement could not be confirmed. Check the Stellar ledger before taking further action.";
+          const project = state.projects.find(entry => entry.id === projectId);
+          const task = taskFor(project, taskId);
+          (project.agentLog ??= []).push(agentEntry(project, task, "failed", payoutChecks(project, { ...task, payout: { status: "pending" } })));
         }
       });
       throw projectError("Settlement could not be confirmed. The payout is locked to prevent a duplicate.", 502);

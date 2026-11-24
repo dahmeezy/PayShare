@@ -6,9 +6,13 @@ const LIMITS = {
   verify: { max: 5, window: 15 * 60 * 1000 },
 };
 
+// Tests and seed scripts may raise limits; production leaves this unset.
+const scale = Math.max(1, Math.floor(Number(process.env.PAYSHARE_RATE_LIMIT_MULTIPLIER)) || 1);
+
 export function authRateLimiter(limitType) {
-  const limit = LIMITS[limitType];
-  if (!limit) throw new Error(`Unknown rate limit type: ${limitType}`);
+  const base = LIMITS[limitType];
+  if (!base) throw new Error(`Unknown rate limit type: ${limitType}`);
+  const limit = { ...base, max: base.max * scale };
   const attempts = new Map();
 
   return (req, res, next) => {

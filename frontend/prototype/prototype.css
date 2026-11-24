@@ -89,7 +89,8 @@ a { color: inherit; text-decoration: none; }
   #screen.desktop [data-layer="Form side"] { padding-inline: 20px; }
   #screen.desktop [data-layer="Search field"] { max-width: 100%; }
   #screen.desktop [data-layer="Top bar"] { padding-inline: 20px; }
-  #screen.desktop [data-layer="Sidebar"] { width: 200px; }
+  #screen.desktop [data-layer="Sidebar"] { width: 224px; flex-shrink: 0; }
+  #screen.desktop [data-layer="Sidebar"] p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #screen.desktop [data-layer="Modal"] { left: 50%; transform: translateX(-50%); }
 }
 @media (max-width: 767px) {
@@ -186,6 +187,9 @@ a { color: inherit; text-decoration: none; }
   #screen.desktop [data-layer="Stats"]:has(> [data-layer="Stat card"]) { flex-wrap: wrap; }
   #screen.desktop [data-layer="Stats"] > [data-layer="Stat card"] { flex: 1 1 11rem; min-width: 0; }
   #screen.desktop .demo-table-scroll > [data-layer] { min-inline-size: 38rem; }
+  #screen.desktop [data-layer="Page header"] > :first-child { flex: 1 1 20rem; min-width: 0; }
+  #screen.desktop [data-layer="Page header"] > [data-layer="Actions"] { flex: 0 1 auto; }
+  #screen.desktop [data-layer="Main"] { min-width: 0; flex: 1 1 0; }
   #screen.desktop [data-layer="Hero"] { padding-inline: clamp(16px, 4vw, 80px); }
   #screen.desktop [data-layer="Hero"] [data-layer="l"] { flex: 1 1 23rem; }
   #screen.desktop [data-layer="Product preview"] { flex: 1 1 22rem; }

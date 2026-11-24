@@ -168,6 +168,8 @@ async function main() {
     await worker.getByText("Worker One Updated", { exact: true }).waitFor();
     assert.equal(await worker.getByText("Contractor compensation", { exact: true }).count(), 0);
     await show(worker, "Decorate stage");
+    await route(worker, mobile ? "mw05" : "w03");
+    await show(worker, mobile ? "Accept" : "Accept task & payment");
     await route(worker, mobile ? "mw03" : "w04");
     await show(worker, "Submit work");
     await worker.getByLabel("Submission notes or work link").fill("Backdrop installed. Ready for review.");
@@ -205,6 +207,7 @@ async function main() {
     await contractor.goto(approvalPage);
     await show(contractor, mobile ? "Run payout simulation" : "Authorize payout");
     await route(contractor, "c24");
+    await contractor.getByLabel("Create a 6-digit payout PIN").fill("123456");
     await show(contractor, "Run payout simulation");
     await route(contractor, "c29");
     await contractor.getByText("Simulated · No funds moved", { exact: true }).waitFor();

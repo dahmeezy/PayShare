@@ -1,0 +1,76 @@
+services:
+  - type: web
+    name: payshare
+    runtime: node
+    plan: starter # persistent disk requires a paid plan; free would lose all data on every deploy
+    # deploys from the repo root: the server also serves ../frontend
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /catalog
+    disk:
+      name: payshare-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: PAYSHARE_ENABLE_TESTNET_PAYOUTS
+        value: "true"
+      - key: PAYSHARE_SECURE_COOKIES
+        value: "true"
+      - key: PAYSHARE_USERS_FILE
+        value: /var/data/users.json
+      - key: PAYSHARE_STATE_FILE
+        value: /var/data/payshare-state.json
+      - key: PAYSHARE_WORKSPACE_FILE
+        value: /var/data/payshare-workspace.json
+      - key: AGENT_SPEND_LOG_FILE
+        value: /var/data/.agent-spend-log.json
+      - key: STELLAR_NETWORK
+        value: stellar:testnet
+      - key: STELLAR_NETWORK_PASSPHRASE
+        value: Test SDF Network ; September 2015
+      - key: STELLAR_HORIZON_URL
+        value: https://horizon-testnet.stellar.org
+      - key: STELLAR_RPC_URL
+        value: https://soroban-testnet.stellar.org
+      - key: STELLAR_EXPLORER_URL
+        value: https://stellar.expert/explorer/testnet
+      - key: USDC_ASSET_CODE
+        value: USDC
+      - key: USDC_ISSUER
+        value: GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5
+      - key: USDC_CONTRACT_ID
+        value: CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA
+      - key: USDC_DECIMALS
+        value: 7
+      - key: USDC_FAUCET_URL
+        value: https://faucet.circle.com
+      - key: FACILITATOR
+        value: backup
+      - key: FACILITATOR_BACKUP_URL
+        value: https://x402.org/facilitator
+      - key: AGENT_PLANNER
+        value: scripted
+      - key: AGENT_TASK_BUDGET_USD
+        value: 0.05
+      - key: AGENT_MAX_PER_REQUEST_USD
+        value: 0.02
+      - key: AGENT_ALLOWED_HOSTS
+        value: localhost:4021
+      - key: AGENT_APPROVE_ABOVE_USD
+        value: 0.005
+      - key: AGENT_APPROVAL_TIMEOUT_SECONDS
+        value: 120
+      - key: AGENT_DAILY_BUDGET_USD
+        value: 0.5
+      - key: CONSOLE_PORT
+        value: 4022
+      - key: API_BASE_URL
+        sync: false # set to your https://<service>.onrender.com URL after the first deploy
+      - key: STELLAR_RECIPIENT
+        sync: false
+      - key: STELLAR_SECRET_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

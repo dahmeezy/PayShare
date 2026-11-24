@@ -387,6 +387,16 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
       const rail = layer(content, "Rail");
       if (rail) rail.hidden = true;
       if (!data.selectedTasks.length) empty(area, "No project activity.");
+      if (route === "c31" && data.project && user.role !== "worker") {
+        api(workspace + "/projects/" + data.project.id + "/agent-log").then(entries => {
+          if (!entries.length) return empty(area, "The payout agent has not made any decisions yet.");
+          empty(area, "Payout agent decisions, newest first");
+          for (const entry of entries) {
+            empty(area, new Date(entry.at).toLocaleString() + " · " + entry.message);
+            for (const check of entry.checks) empty(area, "    " + (check.ok ? "✓ " : "✗ ") + check.label);
+          }
+        }).catch(() => {});
+      }
       if (capabilities.aiSummary && data.project) {
         const button = document.createElement("button");
         button.type = "button";
@@ -420,6 +430,17 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
           return "Stellar payment confirmed.";
         }));
         content.append(button);
+      }
+      if (data.project && user.role !== "worker") {
+        const list = document.createElement("div");
+        list.setAttribute("aria-label", "Payout agent log");
+        content.append(list);
+        api(workspace + "/projects/" + data.project.id + "/agent-log").then(entries => {
+          for (const entry of entries.filter(item => item.taskId === data.task?.id)) {
+            empty(list, new Date(entry.at).toLocaleString() + " · " + entry.message);
+            for (const check of entry.checks) empty(list, (check.ok ? "✓ " : "✗ ") + check.label);
+          }
+        }).catch(() => {});
       }
       return;
     }
@@ -468,6 +489,13 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
           normalized === "d06" || normalized === "md05" ? data.confirmations[0] :
           normalized === "c24" || normalized === "mc09" ? data.ready[0] : null) || data.selectedTasks[0];
         startError = "";
+        // A worker must accept the agreed terms before working: unaccepted tasks open the accept screen.
+        const pending = data.task;
+        if (user.role === "worker" && pending && pending.acceptedAt === null && !pending.declinedAt && pending.status === "assigned"
+          && ["w04", "mw03"].includes(normalized)) {
+          go(normalized === "mw03" ? "mw05" : "w03", pending.project, pending);
+          return;
+        }
       } catch (error) {
         if (!isCurrent()) return;
         data = context([]);
@@ -664,7 +692,13 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
       if (route === "c24" && /^authorize/.test(label)) return run(async () => {
         const payout = task || ready[0];
         if (!payout || !base) throw new Error("No payout is eligible.");
-        try { await api(base + "/tasks/" + payout.id + "/payout", "POST", {}); }
+        const pin = value("Payout PIN") || value("Create a 6-digit payout PIN");
+        if (!/^\d{6}$/.test(pin)) throw new Error("Enter your 6-digit payout PIN.");
+        if (!capabilities.payoutPinSet) {
+          await api(workspace + "/pin", "PUT", { pin });
+          capabilities.payoutPinSet = true;
+        }
+        try { await api(base + "/tasks/" + payout.id + "/payout", "POST", { pin }); }
         catch (error) {
           if (error.status === 502) go("c27", project, payout);
           throw error;
@@ -672,10 +706,18 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
         go("c29", project, payout);
         return project.mode === "preview" ? "Simulated payout. No funds moved." : "Stellar payment verified.";
       });
-      if (["w03", "mw05"].includes(route) && /^accept/.test(label)) {
+      if (["w03", "mw05"].includes(route) && /^accept/.test(label)) return run(async () => {
+        if (!taskPath) throw new Error("Choose a task first.");
+        await api(taskPath + "/accept", "POST", { decision: "accept" });
         go("w04", project, task);
-        return true;
-      }
+        return "Task and agreed payment accepted.";
+      }, true);
+      if (["w03", "mw05"].includes(route) && /^(decline|reject)/.test(label)) return run(async () => {
+        if (!taskPath) throw new Error("Choose a task first.");
+        await api(taskPath + "/accept", "POST", { decision: "decline", reason: value("Reason") || undefined });
+        home();
+        return "Task declined.";
+      }, true);
       if (["Tab", "Chip"].includes(authoredLayer) && (routeGroups.tasks.has(route) || routeGroups.payments.has(route) || ["c15","mc06"].includes(route))) {
         filter = label;
         render();
