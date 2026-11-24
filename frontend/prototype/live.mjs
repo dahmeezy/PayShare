@@ -387,6 +387,16 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
       const rail = layer(content, "Rail");
       if (rail) rail.hidden = true;
       if (!data.selectedTasks.length) empty(area, "No project activity.");
+      if (route === "c31" && data.project && user.role !== "worker") {
+        api(workspace + "/projects/" + data.project.id + "/agent-log").then(entries => {
+          if (!entries.length) return empty(area, "The payout agent has not made any decisions yet.");
+          empty(area, "Payout agent decisions, newest first");
+          for (const entry of entries) {
+            empty(area, new Date(entry.at).toLocaleString() + " · " + entry.message);
+            for (const check of entry.checks) empty(area, "    " + (check.ok ? "✓ " : "✗ ") + check.label);
+          }
+        }).catch(() => {});
+      }
       if (capabilities.aiSummary && data.project) {
         const button = document.createElement("button");
         button.type = "button";
