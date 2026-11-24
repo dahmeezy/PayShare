@@ -104,15 +104,18 @@ export function bar(root, amounts) {
 }
 
 export function context(projects, selected, taskId) {
-  const project = projects.find(item => item.id === selected) || projects[0];
+  const project = selected === null || selected === undefined ? projects[0] : projects.find(item => item.id === selected);
   const tasks = projects.flatMap(p => p.tasks.map(t => ({ ...t, project: p })));
-  const selectedTasks = tasks.filter(t => t.project === project);
-  const task = selectedTasks.find(item => item.id === taskId);
+  const availableTasks = tasks.filter(t => t.project === project);
+  const task = availableTasks.find(item => item.id === taskId);
+  const selectionMissing = Boolean((selected !== null && selected !== undefined && !project) ||
+    (taskId !== null && taskId !== undefined && !task));
+  const selectedTasks = selectionMissing ? [] : availableTasks;
   const paid = sum(tasks.filter(t => t.payout.status === "paid"), "amount");
   const simulated = sum(tasks.filter(t => t.payout.status === "simulated"), "amount");
   const allocation = sum(tasks, "amount");
   return {
-    projects, project, tasks, selectedTasks, task, paid, simulated, allocation,
+    projects, project, tasks, selectedTasks, task, selectionMissing, paid, simulated, allocation,
     pending: allocation - paid - simulated,
     complete: tasks.filter(t => t.status === "approved").length,
     review: selectedTasks.filter(t => t.status === "submitted"),

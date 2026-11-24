@@ -136,6 +136,25 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     await writeFile(fixture.workspace, raw);
   });
 
+  await t.test("invitation registration derives the role server-side and rejects a mismatched email", async () => {
+    const client = await account(app, "InvitationOwner", "client");
+    const { body: project } = await client.agent.post(prefix + "/projects").send({
+      name: "Invited team", budget: 5000, mode: "preview",
+    }).expect(201);
+    const email = "invited@example.test";
+    const { body: { token } } = await client.agent.post(prefix + "/projects/" + project.id + "/invitations").send({
+      role: "contractor", email,
+    }).expect(200);
+    const invited = request.agent(app);
+    const registration = { name: "Invited contractor", password, role: "worker", invitationToken: token };
+    await invited.post("/api/register").send({ ...registration, email: "wrong@example.test" }).expect(403);
+    const { body } = await invited.post("/api/register").send({ ...registration, email }).expect(201);
+    assert.equal(body.role, "contractor");
+    await invited.get("/api/session").expect(200).expect(response => assert.equal(response.body.role, "contractor"));
+    await invited.post(prefix + "/invitations/respond").send({ token, decision: "accept" }).expect(200);
+    await request(app).post("/api/register").send({ ...registration, email }).expect(404);
+  });
+
   await t.test("testnet uses the facilitator and only records a matching independently confirmed transfer", async t => {
     process.env.PAYSHARE_ENABLE_TESTNET_PAYOUTS = "true";
     t.after(() => { delete process.env.PAYSHARE_ENABLE_TESTNET_PAYOUTS; });
@@ -232,7 +251,11 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     await contractor.agent.get(prefix + "/projects").expect(200);
     assert.deepEqual(calls, ["supported"]);
     support = true;
-    await contractor.agent.post(task + "/payout").send({}).expect(502);
+    const attempts = await Promise.all([
+      contractor.agent.post(task + "/payout").send({}),
+      contractor.agent.post(task + "/payout").send({}),
+    ]);
+    assert.deepEqual(attempts.map(result => result.status).sort(), [409, 502]);
     const projectData = async () => (await worker.agent.get(prefix + "/projects").expect(200)).body.find(entry => entry.id === project.id);
     assert.equal((await projectData()).tasks[0].payout.status, "failed");
     assert.equal((await projectData()).tasks[0].payout.transaction, undefined);
@@ -241,7 +264,8 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     ledgerMatches = true;
     await contractor.agent.post(task + "/reconcile").send({}).expect(200);
     assert.equal((await projectData()).tasks[0].payout.transaction, hash);
-    assert.deepEqual(calls, ["supported", "supported", "verify", "settle"]);
+    assert.equal(calls.filter(call => call === "verify").length, 1);
+    assert.equal(calls.filter(call => call === "settle").length, 1);
     successful = false;
     const second = await assign(group, 1000, "Second testnet task");
     await approve(group, second);

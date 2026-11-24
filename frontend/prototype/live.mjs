@@ -30,7 +30,7 @@ const shortcutRoutes = {
 };
 const cents = value => Math.round(Number(value) * 100);
 
-export function liveApplication({ screen, goto, render, roleFor, roles, announce, showSettings }) {
+export function liveApplication({ screen, render, roleFor, roles, announce }) {
   let user = null;
   let draft = {};
   let started = false;
@@ -38,11 +38,11 @@ export function liveApplication({ screen, goto, render, roleFor, roles, announce
   let inFlight = false;
   let capabilities = {};
   let startError = "";
-  let invite;
   let invitationToken = sessionStorage.getItem("payshare-invitation") || "";
   let ignoredToken = "";
   let filter = "";
   let currentView = "";
+  let selectionNotice = "";
   let data = context([]);
 
   function params() {
@@ -71,7 +71,6 @@ export function liveApplication({ screen, goto, render, roleFor, roles, announce
     });
   }
   function saveInvitation(token) {
-    invite = undefined;
     invitationToken = token;
     if (token) sessionStorage.setItem("payshare-invitation", token);
     else sessionStorage.removeItem("payshare-invitation");
@@ -87,7 +86,7 @@ export function liveApplication({ screen, goto, render, roleFor, roles, announce
     note.textContent = message;
   }
   function execute(button, operation) {
-    if (inFlight) return;
+    if (inFlight || screen.inert) return;
     inFlight = true;
     button?.setAttribute("aria-busy", "true");
     const host = layer(screen, "Modal") || layer(screen, "Form") || layer(screen, "Content") || screen;
@@ -120,7 +119,6 @@ export function liveApplication({ screen, goto, render, roleFor, roles, announce
     const token = invitationToken;
     void api(workspace + "/invitations/lookup", "POST", { token }).then(result => {
       if (!form.isConnected || token !== invitationToken) return;
-      invite = result;
       put(caption[2], result.name);
       put(caption[3], "Join as " + result.role);
       if (!user) {
@@ -448,23 +446,30 @@ export function liveApplication({ screen, goto, render, roleFor, roles, announce
       if (roleFor(requested) === user.role || (requested === "c16" && user.role === "client")) return requested;
       return roles[user.role].home;
     },
+    accountRole() { return user?.role; },
     hash(route) {
       return roleFor(route) && user ? selectedRoute(route, data.project, data.task) : "#/" + route;
     },
-    async prepare(route) {
+    async prepare(route, isCurrent) {
+      if (!isCurrent()) return;
       const normalized = baseRoute(route);
       if (currentView !== normalized) filter = "";
       currentView = normalized;
       if (!user || !roleFor(normalized) || !started) return;
+      const query = params();
+      const selected = query.get("project");
+      const taskId = query.get("task");
       try {
         const projects = await api(workspace + "/projects");
-        const query = params();
-        data = context(projects, query.get("project"), query.get("task"));
-        if (!data.task) data.task = (route === "c21" || route === "mc08" ? data.review[0] :
-          route === "d06" || route === "md05" ? data.confirmations[0] :
-          route === "c24" || route === "mc09" ? data.ready[0] : null) || data.selectedTasks[0];
+        if (!isCurrent()) return;
+        data = context(projects, selected, taskId);
+        selectionNotice = data.selectionMissing ? "This project or task is unavailable. Choose a record from the list." : "";
+        if (!taskId && !data.task) data.task = (normalized === "c21" || normalized === "mc08" ? data.review[0] :
+          normalized === "d06" || normalized === "md05" ? data.confirmations[0] :
+          normalized === "c24" || normalized === "mc09" ? data.ready[0] : null) || data.selectedTasks[0];
         startError = "";
       } catch (error) {
+        if (!isCurrent()) return;
         data = context([]);
         startError = error.message;
         if (error.status === 401) { user = null; go("a03"); }
@@ -515,8 +520,7 @@ export function liveApplication({ screen, goto, render, roleFor, roles, announce
         draft = { name:value("Full name"), email:value("Email address"), password:screen.querySelector('[aria-label="Create a password"]')?.value };
         if (!invitationToken) { go("a07"); return true; }
         return run(async () => {
-          invite ||= await api(workspace + "/invitations/lookup", "POST", { token:invitationToken });
-          user = await api("/register", "POST", { ...draft, role:invite.role });
+          user = await api("/register", "POST", { ...draft, invitationToken });
           draft = {};
           await afterAuth(true);
         }, true);
@@ -736,7 +740,7 @@ export function liveApplication({ screen, goto, render, roleFor, roles, announce
       if (!isDashboard(route)) for (const title of paragraphs(layer(content, "Page header"))) {
         title.textContent = title.textContent.replaceAll("Lagos Wedding Decoration", data.project?.name || "Projects");
       }
-      if (startError) empty(content, startError, content.firstChild);
+      if (startError || selectionNotice) empty(content, startError || selectionNotice, content.firstChild);
       if (isDashboard(route)) bindDashboard(screen, route, user, data);
       else if (routeGroups.projects.has(route)) bindProjects(screen, route, data);
       else if (routeGroups.tasks.has(route)) bindTaskList(content, route, data, filter);

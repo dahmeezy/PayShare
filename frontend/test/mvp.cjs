@@ -9,6 +9,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 const backend = resolve(__dirname, "../../backend");
 const source = name => import(pathToFileURL(join(backend, "src", name)).href);
 const password = "test-mvp-password";
+const mobile = process.env.PAYSHARE_MVP_MOBILE === "1";
 
 async function register(page, name, email, role, invited = false) {
   if (invited) await page.getByRole("link", { name: "Create an account to respond" }).click();
@@ -81,13 +82,13 @@ async function main() {
       });
       return result;
     }
-    const client = await page(1440);
+    const client = await page(mobile ? 390 : 1440);
     await client.goto(origin);
     await register(client, "Client One", "client@example.test", "client");
     await onboarding(client);
-    await route(client, "d01");
-    await client.getByText("No project yet", { exact: true }).waitFor();
-    await show(client, "Fund a project");
+    await route(client, mobile ? "md01" : "d01");
+    await client.getByText(/^No project yet$/i).waitFor();
+    await show(client, mobile ? "Create project" : "Fund a project");
     await route(client, "d09");
     await client.getByLabel("Project name").fill("Lagos launch");
     await client.getByLabel("Project budget (USDC)").fill("100");
@@ -103,39 +104,51 @@ async function main() {
     await show(client, "Invite contractor");
     const contractorURL = await invite(client, "contractor@example.test", "contractor");
 
-    const contractor = await page(1024);
+    const contractor = await page(mobile ? 390 : 1024);
     await contractor.goto(contractorURL);
     await register(contractor, "Contractor One", "contractor@example.test", "contractor", true);
     await show(contractor, "Accept invitation");
     await onboarding(contractor);
-    await route(contractor, "c01");
-    await show(contractor, "View budget");
+    await route(contractor, mobile ? "mc01" : "c01");
+    await show(contractor, mobile ? "Budget" : "View budget");
     await show(contractor, "Manage budget");
     await contractor.getByLabel("Your compensation (USDC)").fill("10");
     response = contractor.waitForResponse(res => res.url().endsWith("/budget") && res.status() === 200);
     await show(contractor, "Save changes");
     await response;
-    await route(contractor, "c10");
+    await route(contractor, mobile ? "mc03" : "c10");
     await click(contractor.getByText("Add expense", { exact:true }));
     await contractor.getByLabel("Expense description").fill("Materials");
     await contractor.getByLabel("Amount (USDC)", { exact: true }).fill("5");
     response = contractor.waitForResponse(res => res.url().endsWith("/expenses") && res.status() === 200);
     await show(contractor, "Record approved expense");
     await response;
-    await route(contractor, "c10");
-    await contractor.getByText("Materials", { exact:true }).waitFor();
+    await route(contractor, mobile ? "mc03" : "c10");
+    if (mobile) {
+      await route(contractor, "mc03");
+      await contractor.getByText("5 USDC", { exact:true }).first().waitFor();
+    } else await contractor.getByText("Materials", { exact:true }).waitFor();
     await contractor.goto(origin + "/frontend/prototype.html?app=1#/c01");
+    if (mobile) {
+      await show(contractor, "More");
+      await contractor.getByRole("link", { name: "Workers", exact: true }).click();
+      await route(contractor, "mc06");
+    }
     await show(contractor, "Invite worker");
     const workerURL = await invite(contractor, "worker@example.test", "worker");
 
-    const worker = await page(390);
+    const worker = await page(mobile ? 390 : 1440);
     await worker.goto(workerURL);
     await register(worker, "Worker One", "worker@example.test", "worker", true);
     await show(worker, "Accept invitation");
     await onboarding(worker, "Worker One Updated");
-    await route(worker, "mw01");
+    await route(worker, mobile ? "mw01" : "w01");
 
     await contractor.goto(origin + "/frontend/prototype.html?app=1#/c01");
+    if (mobile) {
+      await show(contractor, "Tasks");
+      await route(contractor, "c18");
+    }
     await show(contractor, "Create task");
     await contractor.getByLabel("Task title").fill("Decorate stage");
     await contractor.getByLabel("Task description").fill("Install the event backdrop");
@@ -146,11 +159,11 @@ async function main() {
     await route(contractor, "c20");
 
     await worker.reload();
-    await route(worker, "mw01");
+    await route(worker, mobile ? "mw01" : "w01");
     await worker.getByText("Worker One Updated", { exact: true }).waitFor();
     assert.equal(await worker.getByText("Contractor compensation", { exact: true }).count(), 0);
     await show(worker, "Decorate stage");
-    await route(worker, "mw03");
+    await route(worker, mobile ? "mw03" : "w04");
     await show(worker, "Submit work");
     await worker.getByLabel("Submission notes or work link").fill("Backdrop installed. Ready for review.");
     response = worker.waitForResponse(res => res.url().endsWith("/submission") && res.status() === 200);
@@ -159,30 +172,40 @@ async function main() {
     await route(worker, "w06");
 
     await contractor.goto(origin + "/frontend/prototype.html?app=1#/c01");
-    await show(contractor, "Review submissions");
-    await route(contractor, "c21");
+    await show(contractor, mobile ? "Review" : "Review submissions");
+    await route(contractor, mobile ? "mc08" : "c21");
     await contractor.getByText("Backdrop installed. Ready for review.", { exact: true }).waitFor();
-    await show(contractor, "Approve work");
-    await route(contractor, "c23");
+    await show(contractor, mobile ? "Approve" : "Approve work");
+    await route(contractor, mobile ? "mc09" : "c23");
     await client.goto(origin + "/");
-    await show(client, "Review & confirm");
-    await route(client, "d06");
-    await show(client, "Confirm deliverable");
-    await route(client, "d01");
-    await show(client, "Projects");
+    await show(client, mobile ? "Review" : "Review & confirm");
+    await route(client, mobile ? "md05" : "d06");
+    await show(client, mobile ? "Confirm" : "Confirm deliverable");
+    await route(client, mobile ? "md01" : "d01");
+    if (mobile) {
+      await show(client, "More");
+      await client.getByRole("link", { name: "Projects", exact: true }).click();
+    } else await show(client, "Projects");
     await route(client, "d02");
     await show(client, "Lagos launch");
-    await route(client, "d03");
+    await route(client, mobile ? "md02" : "d03");
     await client.getByText("Decorate stage", { exact:true }).first().waitFor();
-    await contractor.reload();
-    await show(contractor, "Authorize payout");
+    const approvalPage = contractor.url();
+    const params = new URLSearchParams(new URL(approvalPage).hash.split("?")[1]);
+    params.set("task", "old-task-id");
+    await contractor.goto(origin + "/frontend/prototype.html?app=1#/c24?" + params);
+    await route(contractor, "c24");
+    await contractor.getByText("This project or task is unavailable. Choose a record from the list.", { exact: true }).waitFor();
+    assert.equal(await contractor.getByText("Run payout simulation", { exact: true }).isVisible(), false);
+    await contractor.goto(approvalPage);
+    await show(contractor, mobile ? "Run payout simulation" : "Authorize payout");
     await route(contractor, "c24");
     await show(contractor, "Run payout simulation");
     await route(contractor, "c29");
     await contractor.getByText("Simulated · No funds moved", { exact: true }).waitFor();
 
     await worker.goto(origin + "/frontend/prototype.html?app=1#/w12");
-    await route(worker, "mw10");
+    await route(worker, mobile ? "mw10" : "w12");
     await worker.getByText("Simulated · No funds moved", { exact: true }).waitFor();
     assert.equal(await worker.getByRole("link", { name: "View verified transaction" }).count(), 0);
     for (const width of [360, 390, 768, 1024, 1440]) {
@@ -220,7 +243,7 @@ async function main() {
     await route(worker, "w01");
     assert.deepEqual(browserErrors, []);
     assert.deepEqual(badAssets, []);
-    console.log("Browser MVP passed: three roles, invitations, funding, expense, budget, assignment, submission, approval, simulation, refresh and sign-out.");
+    console.log((mobile ? "Mobile" : "Desktop") + " browser MVP passed: three roles, invitations, funding, expense, budget, assignment, submission, approval, simulation, refresh and sign-out.");
     console.log("All three dashboards fit at 360, 390, 768, 1024 and 1440 px. No browser exceptions or broken frontend assets.");
   } catch (error) {
     if (process.env.PAYSHARE_BROWSER_DEBUG) {

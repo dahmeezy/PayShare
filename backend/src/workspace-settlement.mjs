@@ -58,11 +58,11 @@ export function createSettlement(settings, { checkBalance = walletUsdc, createPa
       accepts: [terms],
     };
     const payload = await (createPayload ? createPayload(quote) : client.createPaymentPayload(quote));
-    const verification = await service.verify(payload, terms);
-    if (!verification.isValid || (verification.payer && verification.payer !== payer)) {
-      throw projectError("The facilitator could not verify the payout", 502);
-    }
     return async () => {
+      const verification = await service.verify(payload, terms);
+      if (!verification.isValid || (verification.payer && verification.payer !== payer)) {
+        throw projectError("The facilitator could not verify the payout", 502);
+      }
       const result = await service.settle(payload, terms);
       if (!result.success || result.network !== network || !validHash(result.transaction)) {
         throw projectError("The facilitator did not confirm settlement", 502);

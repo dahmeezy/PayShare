@@ -5,6 +5,7 @@ import { authRateLimiter } from "./rate-limit.mjs";
 import { endSession, publicUser, requireSession, startSession } from "./session.mjs";
 import { projectError } from "./project-store.mjs";
 import { endpoint } from "./money-api.mjs";
+import { invitedRole } from "./invitations.mjs";
 
 export const validEmail = email => typeof email === "string" && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 const validName = name => typeof name === "string" && name.trim().length > 0 && name.length <= 120;
@@ -14,15 +15,17 @@ export function createAuthRouter() {
   router.use(express.json({ limit: "16kb" }));
   router.use((_req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
 
-  router.post("/register", authRateLimiter("register"), endpoint((req, res) => {
-    const { name, email, role, stellarAddress, password } = req.body ?? {};
+  router.post("/register", authRateLimiter("register"), endpoint(async (req, res) => {
+    const { name, email, role, stellarAddress, password, invitationToken } = req.body ?? {};
     if (!validName(name)) throw projectError("Name is required");
     if (!validEmail(email)) throw projectError("Enter a valid email address");
-    if (!["contractor", "worker", "client"].includes(role)) throw projectError("Choose a valid role");
+
     if (typeof password !== "string" || password.trim().length < 8 || password.length > 128) {
       throw projectError("Use a password with 8 to 128 characters");
     }
-    const user = createUser({ name, email, role, stellarAddress, password });
+    const accountRole = invitationToken === undefined ? role : await invitedRole(invitationToken, email);
+    if (!["contractor", "worker", "client"].includes(accountRole)) throw projectError("Choose a valid role");
+    const user = createUser({ name, email, role: accountRole, stellarAddress, password });
     startSession(req, res, user.email);
     res.status(201).json(publicUser(user));
   }));

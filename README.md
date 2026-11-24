@@ -10,16 +10,17 @@ PayShare uses HTML, CSS and JavaScript for the Figma-based screens, Node.js and 
 
 ## Run locally
 
-Install Node.js 22 or newer. From a PowerShell terminal in the repository root, run:
+Install Git and Node.js 22 or newer. Open PowerShell in the folder where you want to download PayShare and run:
 
 ```powershell
-Set-Location backend
+git clone --branch main https://github.com/dahmeezy/PayShare.git
+Set-Location .\PayShare\backend
 npm.cmd ci
 npm.cmd run init:workspace
 npm.cmd start
 ```
 
-Open [PayShare](http://localhost:4021/). On macOS or Linux, use `cd backend` and `npm` in place of `npm.cmd`. The first run creates a workspace history file. Run `npm start` for later sessions. Local simulation requires no `.env` file, facilitator or OpenAI key. An existing workspace or `.env` is kept intact.
+Open [PayShare](http://localhost:4021/). On macOS or Linux, use `cd PayShare/backend` and `npm` in place of `npm.cmd`. The initializer creates the history file for a new workspace. For later sessions, run `npm.cmd start` from `backend`. Local simulation uses the scripted planner and works without a `.env` file, facilitator or OpenAI key.
 
 The server root opens the original Figma screens with live account and project data. The original workshop console remains available separately with `npm run workshop` in a fully configured workshop environment.
 
@@ -46,13 +47,17 @@ Use separate browser profiles because each profile has one account session. PayS
 | `FACILITATOR`, `FACILITATOR_PRIMARY_URL`, `FACILITATOR_PRIMARY_API_KEY`, `FACILITATOR_BACKUP_URL` | Select the matching provider explicitly. OpenZeppelin needs a valid primary key. The public backup currently advertises x402 exact settlement on Stellar testnet. |
 | `AGENT_PLANNER=ai`, `OPENAI_API_KEY`, `OPENAI_MODEL` | Optional AI summaries for clients and contractors. No OpenAI key is needed for the default scripted workflow. |
 
-Copy `backend/.env.example` into `backend/.env` only if you need optional configuration and the file does not already exist. Keep wallet seeds, access tokens, user data and state files out of Git.
+To configure an optional service, run the following from `backend`, then edit `.env`. Keep wallet seeds, access tokens, user data and state files out of Git.
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
 
 ### Stellar testnet walkthrough
 
 Choose **Stellar testnet** when creating the project. The client saves their public account in **Your profile**, then makes a single classic USDC payment from that wallet to the displayed funding account. Use the project’s displayed **hash memo**, encoded in base64. Enter the amount and Stellar transaction hash in **Fund project**. PayShare checks the network, token issuer, amount, source, destination and memo, and rejects previously recorded transactions.
 
-The worker saves their own public Stellar account before the contractor assigns the task. After all required approvals, **Authorize Stellar testnet payout** asks the scripted agent to check the real project budget and payment history. It gets the facilitator’s capabilities and verifies the payment terms before reserving one attempt. It marks the payout paid only after finding the exact USDC transfer on Stellar testnet. If settlement is uncertain, the payout stays locked and must be reconciled. Ordinary project actions continue during a facilitator outage.
+The worker saves their own public Stellar account before the contractor assigns the task. After all required approvals, **Authorize Stellar testnet payout** checks the project budget and payment history, checks the facilitator’s capabilities, and reserves one attempt before asking the facilitator to verify and settle it. PayShare marks the payout paid only after finding the exact USDC transfer on Stellar testnet. If settlement is uncertain, the payout stays locked and must be reconciled. Ordinary project actions continue during a facilitator outage.
 
 AI mode can summarize project totals and the scripted agent’s eligibility results. Only aggregate status data is sent for that optional request. The same code makes all funding and payout decisions in either mode.
 
@@ -71,6 +76,9 @@ npm.cmd install --no-save --package-lock=false playwright
 npx.cmd playwright install chromium
 $env:PLAYWRIGHT_MODULE = (Resolve-Path .\node_modules\playwright).Path
 node ..\frontend\test\mvp.cjs
+$env:PAYSHARE_MVP_MOBILE = '1'
+node ..\frontend\test\mvp.cjs
+Remove-Item Env:\PAYSHARE_MVP_MOBILE
 ```
 
 Backend tests cover session and role checks, invitation reuse, funding limits, allocations, approvals, missing history, and failed or mismatched settlements. The checkout was tested through a local facilitator and test ledger. A real Stellar testnet payment was not submitted. A read-only query verified the public backup advertises Stellar testnet support. See [facilitator troubleshooting](backend/docs/troubleshooting.md) for credential errors.
@@ -80,8 +88,12 @@ Backend tests cover session and role checks, invitation reuse, funding limits, a
 - Email ownership verification, password recovery and automatic message delivery require an external delivery service. They are disabled and labeled in the app.
 - Task submissions store text or a link. The app does not host attachments. Team members manually refresh project data to see updates from other accounts.
 - The connected app uses the original Figma frames. Features without an API, such as allocation change requests, attachments and voice notes, display an availability message.
-- Run one application instance with write access to both data files. Keep backups together and restrict file access. If payment history is missing or damaged, restore and reconcile it before resuming. The initializer is for a new workspace.
-- Build with Node.js 22 or newer and `npm ci` from `backend`. Start with `npm start` and publish its `PORT` behind HTTPS. Deploy from a checkout containing both `backend` and `frontend` because Express serves the bundled Figma assets. Enable secure cookies and mount the two persistent files. Enable testnet payments only once the configured facilitator and wallets are ready.
+
+### Deployment handoff
+
+1. Use a Node.js 22 or newer host and a checkout containing both `backend` and `frontend`. Set the service working directory to `backend`, the install command to `npm ci`, and the start command to `npm start`.
+2. Run one application instance. Mount a persistent volume, set `PAYSHARE_USERS_FILE` and `PAYSHARE_WORKSPACE_FILE` to separate files on it, and give the application write access. For a new workspace, run `npm run init:workspace` once with those settings. Back up both files together. Restore and reconcile damaged or missing history before resuming payouts.
+3. Expose the host's `PORT` over HTTPS and set `PAYSHARE_SECURE_COOKIES=true`. Open the root URL and run the demo in simulation mode first. Enable testnet payouts only after preparing the wallets and configuring a facilitator.
 
 ## Acknowledgement
 

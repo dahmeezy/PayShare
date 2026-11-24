@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import express from "express";
 import { StrKey } from "@stellar/stellar-sdk";
 import { validEmail } from "./auth-router.mjs";
+import { findInvitation, tokenHash } from "./invitations.mjs";
 import { verifyFundingTransfer, validHash } from "./funding.mjs";
 import { endpoint } from "./money-api.mjs";
 import { checkBudget, payoutTerms } from "./payout-agent.mjs";
@@ -10,7 +11,6 @@ import { requireSession } from "./session.mjs";
 import { getUserById } from "./users-store.mjs";
 import { funded, projectBudget, readWorkspace, updateWorkspace } from "./workspace-store.mjs";
 
-const tokenHash = token => createHash("sha256").update(token).digest("hex");
 const now = () => new Date().toISOString();
 const fundingMemo = id => createHash("sha256").update("PayShare:" + id).digest("base64");
 
@@ -62,16 +62,6 @@ function publicProject(project, user) {
     totals: projectBudget(project), members: project.members,
     invitations: project.invitations.map(({ email, role, status, expiresAt }) => ({ email, role, status, expiresAt })),
   };
-}
-
-function findInvitation(state, token) {
-  if (typeof token !== "string" || !/^[\w-]{43}$/.test(token)) throw projectError("Invalid invitation", 404);
-  const hash = tokenHash(token);
-  for (const project of state.projects) {
-    const invitation = project.invitations.find(entry => entry.hash === hash);
-    if (invitation?.status === "pending" && invitation.expiresAt > Date.now()) return { project, invitation };
-  }
-  throw projectError("Invitation has expired or has already been used", 404);
 }
 
 export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingTransfer, aiStatus = null) {
@@ -268,10 +258,10 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
       return res.json(payout);
     }
 
-    // Discovery and verification cannot settle a transaction. Persist a single reservation before submitting.
+    // Prepare the payload locally. Reserve the task before sending the signed payload to the facilitator.
     let submit;
     try { submit = await settlement.prepare(terms); }
-    catch { throw projectError("Testnet verification is unavailable. Check the facilitator and funding wallet before retrying.", 503); }
+    catch { throw projectError("Testnet payment preparation is unavailable. Check the facilitator and funding wallet before retrying.", 503); }
     const payment = await updateWorkspace(state => {
       const project = projectFor(state, projectId, req.user.id, ["contractor"]);
       const task = taskFor(project, taskId);

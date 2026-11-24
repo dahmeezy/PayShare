@@ -47,3 +47,11 @@
 .workspace-live [aria-busy="true"].demo-action { opacity: .6; cursor: wait; }
 .workspace-live [data-layer="App bar"] .live-outline { flex-shrink: 0; }
 .workspace-live .hidden-live-sample { display: none !important; }
+
+/* Keep authored fixed columns scrollable when a desktop table is used on a narrow screen. */
+@media (max-width: 1200px) {
+  .workspace-live #screen:is([data-route="c02"], [data-route="d02"], [data-route="c18"],
+      [data-route="c29"], [data-route="d08"]) .live-table {
+    min-inline-size: 64rem;
+  }
+}

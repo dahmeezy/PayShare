@@ -316,7 +316,7 @@ function showRoleMenu() {
         nav.append(settings);
       } else {
         const link = element("a", label);
-        link.href = href(target);
+        link.href = live?.hash(target) || href(target);
         link.addEventListener("click", () => dialog.close());
         nav.append(link);
       }
@@ -434,7 +434,9 @@ function installAction(node, label, route) {
 const cleanInvite = label => /^(join project|accept invitation)$/i.test(label);
 
 function closeScreen(route) {
-  const base = route.replace(/-dark$/, "");
+  const base = route.replace(/-(dark|360)$/, "");
+  if (live && base === "c16" && live.accountRole() === "client") { goto("d09"); return; }
+  if (live && base === "c24") { goto("c23"); return; }
   const parent = ({
     c12:"c11", c14:"c10", c16:"c15", mc05:"mc04", mc07:"mc02", mc08:"mc02", mc09:"mc01",
     mw03:"mw02", mw04:"mw03", mw05:"mw03", mw06:"mw03", mw08:"mw07", mw09:"mw03", md05:"md01", md06:"md01",
@@ -632,7 +634,7 @@ async function render() {
     narrow: narrow.matches, compact: compact.matches, dark,
   });
   const view = index.get(target) || index.get(wanted);
-  const currentRole = roleFor(view.route);
+  const currentRole = live?.accountRole() || roleFor(view.route);
   if (currentRole) {
     role = currentRole;
     savePreference("role", role);
@@ -641,6 +643,7 @@ async function render() {
   frame = view;
   document.title = title + " | PayShare";
   screen.setAttribute("aria-busy", "true");
+  if (live) screen.inert = true;
   screen.dataset.route = reset ? route : view.route;
   screen.className = view.width <= 420 ? "phone" : "desktop";
   screen.classList.toggle("appearance-dark", view.route.endsWith("-dark") || dark);
@@ -652,7 +655,7 @@ async function render() {
     const response = await fetch(new URL("views/" + view.route + ".html", import.meta.url));
     if (!response.ok) throw new Error("This demo screen is temporarily unavailable.");
     const html = await response.text();
-    await live?.prepare(reset ? route : view.route);
+    await live?.prepare(reset ? route : view.route, () => version === renderVersion);
     if (version !== renderVersion) return;
     const template = document.createElement("template");
     template.innerHTML = html;
@@ -667,6 +670,7 @@ async function render() {
       banner.className = "payment-note";
       screen.prepend(banner);
     }
+    screen.inert = false;
     const modal = screen.querySelector('[data-layer="Modal"]');
     if (modal) modal.focus({ preventScroll:true });
     else if (document.activeElement?.id !== "explore") screen.focus({ preventScroll:true });
@@ -674,7 +678,10 @@ async function render() {
   } catch (error) {
     if (version === renderVersion) screen.replaceChildren(element("p", error.message));
   } finally {
-    if (version === renderVersion) screen.removeAttribute("aria-busy");
+    if (version === renderVersion) {
+      screen.inert = false;
+      screen.removeAttribute("aria-busy");
+    }
   }
 }
 function setCatalogItems() {

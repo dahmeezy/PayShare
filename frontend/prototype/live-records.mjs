@@ -12,6 +12,7 @@ const values = task => [initials(task.workerName), task.workerName];
 
 function table(container, records, valuesFor, routeFor, message) {
   const root = container?.querySelector('[data-layer="Table"]:has(> [data-layer="Row"])') || container;
+  if (root?.dataset.layer === "Table") root.classList.add("live-table");
   replaceEntries(root, recs, records, (row, item) => {
     const cells = [...row.children].filter(node => node.dataset.layer === "Cell");
     const values = valuesFor(item);
