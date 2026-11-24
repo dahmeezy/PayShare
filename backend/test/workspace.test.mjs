@@ -10,6 +10,7 @@ import request from "supertest";
 
 const password = "isolated-test-password";
 const prefix = "/api/workspace";
+const PIN = "246810";
 
 async function setup(t) {
   const dir = await mkdtemp(join(tmpdir(), "payshare-workspace-"));
@@ -46,6 +47,7 @@ async function team(app, mode, addresses = {}, tag = "") {
   const worker = await account(app, "Worker" + tag, "worker", addresses.worker);
   const { body: project } = await client.agent.post(prefix + "/projects").send({ name: "Launch", budget: 10000, mode }).expect(201);
   const base = prefix + "/projects/" + project.id;
+  await contractor.agent.put(prefix + "/pin").send({ pin: PIN }).expect(200);
   await invitation(client, contractor, base, "contractor");
   await invitation(contractor, worker, base, "worker");
   return { client, contractor, worker, base, project };
@@ -96,7 +98,7 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     assert.equal(workerProjects[0].compensation, undefined);
     assert.equal(workerProjects[0].funding, undefined);
     await other.agent.post(task + "/submission").send({ notes: "Unauthorized" }).expect(404);
-    await contractor.agent.post(task + "/payout").send({}).expect(409);
+    await contractor.agent.post(task + "/payout").send({ pin: PIN }).expect(409);
     await worker.agent.post(task + "/submission").send({ notes: "Too early" }).expect(409);
     await other.agent.post(task + "/accept").send({}).expect(404);
     await worker.agent.post(task + "/accept").send({}).expect(200);
@@ -106,17 +108,17 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     await worker.agent.post(task + "/submission").send({ notes: "Duplicate" }).expect(409);
     await contractor.agent.post(task + "/review").send({ decision: "rejected" }).expect(400);
     await contractor.agent.post(task + "/review").send({ decision: "rejected", notes: "Add the side panels" }).expect(200);
-    await contractor.agent.post(task + "/payout").send({}).expect(409);
+    await contractor.agent.post(task + "/payout").send({ pin: PIN }).expect(409);
     await approve(group, task);
-    await contractor.agent.post(task + "/payout").send({}).expect(409);
+    await contractor.agent.post(task + "/payout").send({ pin: PIN }).expect(409);
     await contractor.agent.post(task + "/confirm").send({}).expect(403);
     await client.agent.post(task + "/confirm").send({}).expect(200);
     await client.agent.post(task + "/confirm").send({}).expect(409);
     await contractor.agent.post(base + "/ai-summary").send({}).expect(503);
     await worker.agent.post(base + "/ai-summary").send({}).expect(403);
     const outcomes = await Promise.all([
-      contractor.agent.post(task + "/payout").send({}),
-      contractor.agent.post(task + "/payout").send({}),
+      contractor.agent.post(task + "/payout").send({ pin: PIN }),
+      contractor.agent.post(task + "/payout").send({ pin: PIN }),
     ]);
     assert.deepEqual(outcomes.map(res => res.status).sort(), [200, 409]);
     const payout = (await worker.agent.get(prefix + "/projects")).body[0].tasks[0].payout;
@@ -139,9 +141,9 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     const damaged = JSON.parse(raw);
     delete damaged.projects[0].tasks[0].payout;
     await writeFile(fixture.workspace, JSON.stringify(damaged));
-    await contractor.agent.post(task + "/payout").send({}).expect(503);
+    await contractor.agent.post(task + "/payout").send({ pin: PIN }).expect(503);
     await rm(fixture.workspace);
-    await contractor.agent.post(task + "/payout").send({}).expect(503);
+    await contractor.agent.post(task + "/payout").send({ pin: PIN }).expect(503);
     await writeFile(fixture.workspace, raw);
   });
 
@@ -256,19 +258,19 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     await client.agent.post(base + "/funding").send({ amount: 8000, transaction: depositHash }).expect(409);
     const task = await assign(group, 1200);
     await approve(group, task);
-    await contractor.agent.post(task + "/payout").send({}).expect(503);
+    await contractor.agent.post(task + "/payout").send({ pin: PIN }).expect(503);
     await contractor.agent.get(prefix + "/projects").expect(200);
     assert.deepEqual(calls, ["supported"]);
     support = true;
     const attempts = await Promise.all([
-      contractor.agent.post(task + "/payout").send({}),
-      contractor.agent.post(task + "/payout").send({}),
+      contractor.agent.post(task + "/payout").send({ pin: PIN }),
+      contractor.agent.post(task + "/payout").send({ pin: PIN }),
     ]);
     assert.deepEqual(attempts.map(result => result.status).sort(), [409, 502]);
     const projectData = async () => (await worker.agent.get(prefix + "/projects").expect(200)).body.find(entry => entry.id === project.id);
     assert.equal((await projectData()).tasks[0].payout.status, "failed");
     assert.equal((await projectData()).tasks[0].payout.transaction, undefined);
-    await contractor.agent.post(task + "/payout").send({}).expect(409);
+    await contractor.agent.post(task + "/payout").send({ pin: PIN }).expect(409);
     await contractor.agent.post(task + "/reconcile").send({}).expect(502);
     ledgerMatches = true;
     await contractor.agent.post(task + "/reconcile").send({}).expect(200);
@@ -278,8 +280,8 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     successful = false;
     const second = await assign(group, 1000, "Second testnet task");
     await approve(group, second);
-    await contractor.agent.post(second + "/payout").send({}).expect(502);
-    await contractor.agent.post(second + "/payout").send({}).expect(409);
+    await contractor.agent.post(second + "/payout").send({ pin: PIN }).expect(502);
+    await contractor.agent.post(second + "/payout").send({ pin: PIN }).expect(409);
     await contractor.agent.post(second + "/reconcile").send({}).expect(409);
     assert.equal((await projectData()).tasks[1].payout.status, "failed");
     assert.equal((await projectData()).tasks[1].payout.transaction, undefined);
@@ -310,5 +312,45 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     const declined = (await worker.agent.get(prefix + "/projects").expect(200)).body[0].tasks.find(entry => entry.title === "Flowers");
     assert.equal(declined.status, "declined");
     await worker.agent.post(base + "/tasks/" + second.id + "/submission").send({ notes: "x" }).expect(409);
+  });
+  await t.test("payouts need the contractor PIN, the agent explains every decision, and receipts respect roles", async () => {
+    const group = await team(app, "preview", {}, "Pin");
+    const { client, contractor, worker, base } = group;
+    await client.agent.post(base + "/funding").send({ amount: 10000 }).expect(200);
+    const task = await assign(group, 1500, "Paint wall");
+    await contractor.agent.put(prefix + "/pin").send({ pin: "12ab56" }).expect(400);
+    await worker.agent.put(prefix + "/pin").send({ pin: "135790" }).expect(403);
+    assert.equal((await contractor.agent.get(prefix + "/capabilities")).body.payoutPinSet, true);
+    // Blocked before approval: the agent logs why, in plain language.
+    await contractor.agent.post(task + "/payout").send({ pin: PIN }).expect(409);
+    await approve(group, task);
+    await contractor.agent.post(task + "/payout").send({}).expect(400);
+    await contractor.agent.post(task + "/payout").send({ pin: "000000" }).expect(403);
+    await worker.agent.post(task + "/payout").send({ pin: PIN }).expect(403);
+    const paid = await contractor.agent.post(task + "/payout").send({ pin: PIN }).expect(200);
+    assert.equal(paid.body.status, "simulated");
+    assert.match(paid.body.key, /^[a-f0-9]{64}$/);
+    await contractor.agent.post(task + "/payout").send({ pin: PIN }).expect(409);
+
+    const log = (await contractor.agent.get(base + "/agent-log").expect(200)).body;
+    assert.deepEqual(log.map(entry => entry.outcome), ["blocked", "simulated", "blocked"]);
+    assert.match(log[0].message, /not been paid before/i);
+    assert.match(log.find(entry => entry.outcome === "simulated").message, /Demo mode.*No funds moved/);
+    assert.match(log[2].message, /contractor approved the work/i);
+    await worker.agent.get(base + "/agent-log").expect(403);
+    await client.agent.get(base + "/agent-log").expect(200);
+
+    const receipt = (await worker.agent.get(prefix + "/receipts").expect(200)).body;
+    assert.equal(receipt.length, 1);
+    assert.equal(receipt[0].demo, true);
+    assert.equal(receipt[0].explorerUrl, null);
+    assert.equal(receipt[0].id, paid.body.key);
+    assert.equal((await contractor.agent.get(prefix + "/receipts").expect(200)).body.length, 1);
+    const stranger = await account(app, "StrangerPin", "worker");
+    assert.deepEqual((await stranger.agent.get(prefix + "/receipts").expect(200)).body, []);
+    const next = await assign(group, 1000, "Hang lights");
+    await approve(group, next);
+    for (let i = 0; i < 5; i++) await contractor.agent.post(next + "/payout").send({ pin: "111111" }).expect(403);
+    await contractor.agent.post(next + "/payout").send({ pin: PIN }).expect(429);
   });
 });

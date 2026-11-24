@@ -255,12 +255,17 @@ export function configureForm(screen, route, data, user, options) {
       ["AO", initials(payout?.workerName || "")], ["Lagos Wedding Decoration", project?.name || "—"],
       [/^150\.00$|^150$/, number(payout?.amount)], [/^150 USDC$/, money(payout?.amount)],
       [/David confirmed the outfits/, payout ? taskStatus(payout) : "No eligible payout is selected."],
-      [/Enter your 6-digit PIN|You’ll confirm with your PIN/, "Authorized by your signed-in contractor account."],
+      [/Enter your 6-digit PIN|You’ll confirm with your PIN/, options.capabilities?.payoutPinSet ? "Enter your payout PIN to release this payment." : "Create a 6-digit payout PIN. You will use it to authorize every payment."],
       [/Amara and David get a receipt/, "The payment status appears in Transactions."],
       [/files unlock|agent sends.*x402|Stellar confirms it/i, project?.mode === "preview" ? "No funds move during simulation." : "Settlement is verified on Stellar testnet."],
       [/^Stellar Testnet · USDC$/, project?.mode === "preview" ? "Simulation" : "Stellar Testnet · USDC"]]);
-    const pin = screen.querySelector('[aria-label*="6-digit PIN"]');
-    if (pin) pin.closest('[data-layer="Input"]').hidden = true;
+    const pinHolder = screen.querySelector('[aria-label*="6-digit PIN"]')?.closest('[data-layer="Input"]');
+    if (pinHolder) {
+      pinHolder.hidden = !payout;
+      const control = input(screen, options.capabilities?.payoutPinSet ? "Payout PIN" : "Create a 6-digit payout PIN",
+        { oldLabel: screen.querySelector('[aria-label*="6-digit PIN"]')?.getAttribute("aria-label"), holder: pinHolder, type: "password", required: true });
+      if (control) { control.inputMode = "numeric"; control.maxLength = 6; control.pattern = "\\d{6}"; control.autocomplete = "off"; }
+    }
     if (route === "c24" && payout) {
       for (const [i, check] of [...(layer(content, "Checks")?.querySelectorAll(':scope > [data-layer="c"]') || [])].entries()) {
         slots(layer(check, "t") || check, [["Allocation recorded", "Contractor review", "Client sign-off", "Funding", "Payment history", "Settlement"][i],

@@ -421,6 +421,17 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
         }));
         content.append(button);
       }
+      if (data.project && user.role !== "worker") {
+        const list = document.createElement("div");
+        list.setAttribute("aria-label", "Payout agent log");
+        content.append(list);
+        api(workspace + "/projects/" + data.project.id + "/agent-log").then(entries => {
+          for (const entry of entries.filter(item => item.taskId === data.task?.id)) {
+            empty(list, new Date(entry.at).toLocaleString() + " · " + entry.message);
+            for (const check of entry.checks) empty(list, (check.ok ? "✓ " : "✗ ") + check.label);
+          }
+        }).catch(() => {});
+      }
       return;
     }
     panelUnsupported(content, "This screen’s workflow is unavailable in the connected app.");
@@ -664,7 +675,13 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
       if (route === "c24" && /^authorize/.test(label)) return run(async () => {
         const payout = task || ready[0];
         if (!payout || !base) throw new Error("No payout is eligible.");
-        try { await api(base + "/tasks/" + payout.id + "/payout", "POST", {}); }
+        const pin = value("Payout PIN") || value("Create a 6-digit payout PIN");
+        if (!/^\d{6}$/.test(pin)) throw new Error("Enter your 6-digit payout PIN.");
+        if (!capabilities.payoutPinSet) {
+          await api(workspace + "/pin", "PUT", { pin });
+          capabilities.payoutPinSet = true;
+        }
+        try { await api(base + "/tasks/" + payout.id + "/payout", "POST", { pin }); }
         catch (error) {
           if (error.status === 502) go("c27", project, payout);
           throw error;
