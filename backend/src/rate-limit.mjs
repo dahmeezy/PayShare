@@ -1,5 +1,6 @@
 // In-memory rate limits for the demo auth endpoints.
 const LIMITS = {
+  register: { max: 10, window: 15 * 60 * 1000 },
   login: { max: 5, window: 15 * 60 * 1000 },
   forgot: { max: 3, window: 15 * 60 * 1000 },
   verify: { max: 5, window: 15 * 60 * 1000 },

@@ -1,130 +1,75 @@
 import express from "express";
-import { createUser, getUserByEmail, loginUser, listUsers } from "./users-store.mjs";
+import { StrKey } from "@stellar/stellar-sdk";
+import { createUser, loginUser, readUsers, writeUsers } from "./users-store.mjs";
 import { authRateLimiter } from "./rate-limit.mjs";
+import { endSession, publicUser, requireSession, startSession } from "./session.mjs";
+import { projectError } from "./project-store.mjs";
+import { endpoint } from "./money-api.mjs";
+import { invitedRole } from "./invitations.mjs";
 
-const endpoint = (fn) => (req, res, next) => Promise.resolve().then(() => fn(req, res)).catch(next);
+export const validEmail = email => typeof email === "string" && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+const validName = name => typeof name === "string" && name.trim().length > 0 && name.length <= 120;
 
 export function createAuthRouter() {
-  const authRouter = express.Router();
+  const router = express.Router();
+  router.use(express.json({ limit: "16kb" }));
+  router.use((_req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
 
-  authRouter.use(express.json({ limit: "16kb" }));
+  router.post("/register", authRateLimiter("register"), endpoint(async (req, res) => {
+    const { name, email, role, stellarAddress, password, invitationToken } = req.body ?? {};
+    if (!validName(name)) throw projectError("Name is required");
+    if (!validEmail(email)) throw projectError("Enter a valid email address");
 
-  // POST /auth/register - Register a new user
-  authRouter.post("/register", endpoint(async (req, res) => {
-    const { name, email, role, stellarAddress, password } = req.body ?? {};
-
-    if (!name || name.trim().length === 0) {
-      throw new Error("Name is required");
+    if (typeof password !== "string" || password.trim().length < 8 || password.length > 128) {
+      throw projectError("Use a password with 8 to 128 characters");
     }
-    if (!email || !email.includes("@")) {
-      throw new Error("Valid email is required");
-    }
-    if (!role || !["contractor", "worker", "client"].includes(role)) {
-      throw new Error("Valid role is required (contractor, worker, client)");
-    }
-    if (!password || password.trim().length < 6) {
-      throw new Error("Password must be at least 6 characters");
-    }
-
-    const user = createUser({ name, email, role, stellarAddress, password });
-
-    res.status(201).json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      stellar_address: user.stellar_address,
-      trustline_ok: user.trustline_ok,
-      created_at: user.created_at,
-    });
+    const accountRole = invitationToken === undefined ? role : await invitedRole(invitationToken, email);
+    if (!["contractor", "worker", "client"].includes(accountRole)) throw projectError("Choose a valid role");
+    const user = createUser({ name, email, role: accountRole, stellarAddress, password });
+    startSession(req, res, user.email);
+    res.status(201).json(publicUser(user));
   }));
 
-  // POST /auth/login - Login user with rate limiting
-  authRouter.post("/login", authRateLimiter('login'), endpoint(async (req, res) => {
+  router.post("/login", authRateLimiter("login"), endpoint((req, res) => {
     const { email, password } = req.body ?? {};
-
-    if (!email || !password) {
-      throw new Error("Email and password are required");
+    if (!validEmail(email) || typeof password !== "string" || !password || password.length > 128) {
+      throw projectError("Email and password are required");
     }
-
     const user = loginUser(email, password);
-
-    if (!user) {
-      throw new Error("Invalid credentials");
-    }
-
-    res.json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      stellar_address: user.stellar_address,
-      trustline_ok: user.trustline_ok,
-    });
+    if (!user) throw projectError("Invalid credentials", 401);
+    startSession(req, res, user.email);
+    res.json(publicUser(user));
   }));
 
-  // POST /auth/logout - Logout user (client-side session clear)
-  authRouter.post("/logout", endpoint(async (req, res) => {
+  router.post("/logout", endpoint((req, res) => {
+    endSession(req, res);
     res.json({ success: true });
   }));
+  router.get("/session", requireSession, (req, res) => res.json(req.user));
+  router.get("/users", requireSession, (req, res) => res.json([req.user]));
 
-  // GET /auth/session - Get current session user
-  authRouter.get("/session", endpoint(async (req, res) => {
-    res.status(401).json({ error: "No active session" });
-  }));
-
-  // POST /auth/forgot - Request password reset (email or WhatsApp code) with rate limiting
-  authRouter.post("/forgot", authRateLimiter('forgot'), endpoint(async (req, res) => {
-    const { email } = req.body ?? {};
-
-    if (!email || !email.includes("@")) {
-      throw new Error("Valid email is required");
+  router.put("/profile", requireSession, endpoint((req, res) => {
+    const { name, stellarAddress } = req.body ?? {};
+    if (!validName(name)) throw projectError("Name is required");
+    if (typeof stellarAddress !== "string" || (stellarAddress && !StrKey.isValidEd25519PublicKey(stellarAddress))) {
+      throw projectError("Enter a valid public Stellar account");
     }
-
-    const user = getUserByEmail(email);
-    if (!user) {
-      // Don't reveal if email exists; use generic success message
-      res.json({ success: true, message: "If an account with that email exists, a reset link has been sent." });
-      return;
-    }
-
-    // In a full implementation, send a 6-digit code via email or WhatsApp
-    // For now, simulate with a stored code and timer
-    const resetCode = String(Math.floor(100000 + Math.random() * 899999)).split('').map(String);
-    const codeExpiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
-
-    res.json({
-      success: true,
-      code: resetCode,  // In prod: don't return the code, just trigger delivery
-      method: user.stellar_address ? "whatsapp" : "email",
-      expiresAt: codeExpiresAt
-    });
+    const users = readUsers();
+    const user = users[req.user.email];
+    if (user.stellar_address !== stellarAddress) user.trustline_ok = false;
+    Object.assign(user, { name: name.trim(), stellar_address: stellarAddress || null, updated_at: new Date().toISOString() });
+    writeUsers(users);
+    res.json(publicUser(user));
   }));
 
-  // POST /auth/verify - Verify 6-digit code with rate limiting
-  authRouter.post("/verify", authRateLimiter('verify'), endpoint(async (req, res) => {
-    const { code } = req.body ?? {};
-
-    if (!code || code.length !== 6) {
-      throw new Error("Valid 6-digit code is required");
-    }
-
-    // In production, verify against the stored code and check expiration
-    // For now, accept any 6-digit code for demo purposes
-    res.json({
-      success: true,
-      userId: "user_demo",
-      sessionToken: "session_demo_" + Date.now()
-    });
+  router.post("/forgot", authRateLimiter("forgot"), endpoint((req, res) => {
+    if (!validEmail(req.body?.email)) throw projectError("Enter a valid email address");
+    res.json({ success: true, deliveryAvailable: false, message: "Password recovery is unavailable. No message was sent." });
   }));
-
-  // GET /auth/users - List users (admin/debug)
-  authRouter.get("/users", endpoint(async (req, res) => {
-    const role = req.query.role ? req.query.role : null;
-    const users = listUsers(role);
-    const safeUsers = users.map(({ password_hash, password_salt, ...rest }) => rest);
-    res.json(safeUsers);
+  router.post("/verify", authRateLimiter("verify"), endpoint((req, res) => {
+    if (typeof req.body?.code !== "string" || !/^\d{6}$/.test(req.body.code)) throw projectError("Valid 6-digit code is required");
+    // Preserve the input validation response for the prototype. No verified identity or session is issued.
+    res.json({ success: true, verified: false, deliveryAvailable: false, message: "Account verification is unavailable." });
   }));
-
-  return authRouter;
+  return router;
 }

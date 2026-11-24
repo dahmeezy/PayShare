@@ -1,7 +1,7 @@
 // One local testnet project. All writers use the same lock, including the payout CLI.
 import fs from "node:fs/promises";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { updateJsonFile } from "./json-file.mjs";
 import { StrKey } from "@stellar/stellar-sdk";
 import { PROJECT } from "./project.mjs";
 
@@ -17,7 +17,7 @@ const emptyProject = () => ({
 });
 
 export function projectError(message, status = 400) {
-  return Object.assign(new Error(message), { status });
+  return Object.assign(new Error(message), { status, expose: true });
 }
 
 const historyUnavailable = () => Object.assign(projectError(
@@ -86,34 +86,8 @@ export async function createProjectState(mode, payer, target = file) {
   await fs.writeFile(target, JSON.stringify(state, null, 2) + "\n", { flag: "wx", mode: 0o600 });
 }
 
-export async function updateProjectState(update) {
-  const lock = file + ".lock";
-  try {
-    await fs.mkdir(lock, { mode: 0o700 });
-  } catch (error) {
-    if (error.code === "EEXIST") throw projectError("Project is busy. Try again shortly.", 409);
-    throw error;
-  }
-  const temporary = file + "." + randomUUID() + ".tmp";
-  try {
-    const state = await readProjectState();
-    const result = await update(state);
-    validateHistory(state);
-    const handle = await fs.open(temporary, "wx", 0o600);
-    try {
-      await handle.writeFile(JSON.stringify(state, null, 2) + "\n");
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
-    await fs.rename(temporary, file);
-    const directory = await fs.open(path.dirname(file), "r");
-    try { await directory.sync(); } finally { await directory.close(); }
-    return result;
-  } finally {
-    await fs.rm(temporary, { force: true });
-    await fs.rmdir(lock);
-  }
+export function updateProjectState(update) {
+  return updateJsonFile(file, readProjectState, update, validateHistory);
 }
 
 export function currentProject(state) {

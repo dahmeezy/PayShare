@@ -1,77 +1,100 @@
 # PayShare
 
-PayShare helps people working on the same project get paid fairly and keep track of their money.
+PayShare helps people working on the same project agree on pay and see when it is due. It gives the team one place to track project funds, tasks, approvals and payments.
 
-When a contractor works with different people, it can be stressful to calculate everyone's pay, confirm that work is done, and send payments one by one. PayShare makes that process easier to manage.
+- **Clients** create or join projects, record funding, review progress and confirm work when a task requires it.
+- **Contractors** manage budgets and expenses, invite workers, assign tasks and pay, review submissions, and run eligible payouts.
+- **Workers** join by invitation, submit assigned work, and see their own pay, approval status and receipts.
 
-## What we are building
+PayShare uses HTML, CSS and JavaScript for the Figma-based screens, Node.js and Express for the API, and local JSON files for persistence. Stellar testnet and test USDC support on-chain funding and settlement. x402 verifies and settles authorized testnet payouts through a configured facilitator.
 
-PayShare is a payment tool for project teams. It helps a client, contractor, and workers agree on how much each person should receive, track project funds, and check payments.
+## Run locally
 
-The goal is simple: everyone should know what they are being paid for, how much they are owed, and whether they have been paid.
+Install Git and Node.js 22 or newer. Open PowerShell in the folder where you want to download PayShare and run:
 
-## How it works
+```powershell
+git clone --branch main https://github.com/dahmeezy/PayShare.git
+Set-Location .\PayShare\backend
+npm.cmd ci
+npm.cmd run init:workspace
+npm.cmd start
+```
 
-1. A project is created with a budget and a list of workers.
-2. Each worker gets a task and an agreed payment amount.
-3. The client funds the project.
-4. The worker completes the task and the required people review the work.
-5. Once the payment conditions are met, PayShare can send the agreed amount in USDC on Stellar testnet.
-6. The team can check payment status and view transaction receipts.
+Open [PayShare](http://localhost:4021/). On macOS or Linux, use `cd PayShare/backend` and `npm` in place of `npm.cmd`. The initializer creates the history file for a new workspace. For later sessions, run `npm.cmd start` from `backend`. Local simulation uses the scripted planner and works without a `.env` file, facilitator or OpenAI key.
 
-PayShare uses **Stellar** for blockchain payments and **x402** to support the payment process.
+The server root opens the original Figma screens with live account and project data. The original workshop console remains available separately with `npm run workshop` in a fully configured workshop environment.
 
-## Features
+## Five-minute demo
 
-The current development work includes:
+1. Register as a **client**. Complete onboarding, then choose **Fund a project** from the dashboard. Create a project in **Simulation** mode with a budget of 100 USDC and record 100 USDC in simulated funding.
+2. Choose **Invite contractor** on the funding or financial breakdown screen. Copy the private link into a separate browser profile. Register with the invited email and accept the invitation. From the contractor dashboard, open **View budget**, choose **Manage budget** to set compensation to 10 USDC, then **Add expense** to record a 5 USDC expense.
+3. Open **Invite worker** on the contractor dashboard. Share the link with another browser profile. Register as the invited worker and accept. The invitation sets the account role. The profile screen lets workers edit their name and public payout wallet.
+4. From the contractor dashboard, choose **Create task**. Assign a worker, enter a 45 USDC allocation, and select **Require client confirmation**. As the worker, open the task from **My tasks**, choose **Submit work**, and enter a note or deliverable link.
+5. The contractor opens **Review submissions** and approves the work. The client opens **Review & confirm** on their dashboard and confirms the deliverable. The contractor opens **Approvals**, chooses **Authorize payout**, then **Run payout simulation**. The worker opens **Payment history** to see **Simulated · No funds moved**. Reopen or refresh a screen to see changes saved from another account.
 
-- **Project money overview:** See the budget, expenses, worker allocations, and payment status.
-- **Funding checks:** Verify testnet USDC deposits before treating them as available funds.
-- **Task approvals:** Record worker acceptance, contractor review, and client confirmation where needed.
-- **Allocation changes:** Let people propose and approve changes to agreed pay.
-- **Incomplete work reports:** Record issues and agree on what should happen next.
-- **Payment protection:** Check payment conditions and help prevent paying the same task twice.
-- **WhatsApp sharing:** Prepare a message and link that someone can review and send through WhatsApp.
+Use separate browser profiles because each profile has one account session. PayShare creates private links for manual sharing. It does not send them. Compare the connected dashboards with the Figma frames in the [visual review](frontend/review/connected-dashboard-review.md).
 
-Some of these features are still in separate pull requests and are not yet part of the main branch.
+## Payments and optional configuration
 
-## Figma frontend preview
+| Setting | When needed |
+| --- | --- |
+| `PORT` | Optional. Defaults to 4021. |
+| `PAYSHARE_USERS_FILE`, `PAYSHARE_WORKSPACE_FILE` | Optional local paths. Set to files on persistent storage when hosting. |
+| `PAYSHARE_SECURE_COOKIES=true` | Set when serving the app over HTTPS. |
+| `PAYSHARE_ENABLE_TESTNET_PAYOUTS=true` | Explicitly enables testnet projects when the rest of the testnet configuration is valid. Keep off for a simulation-only demo. |
+| `STELLAR_NETWORK`, `STELLAR_NETWORK_PASSPHRASE`, `USDC_CONTRACT_ID` | Use the Stellar testnet and Circle testnet USDC values in [backend/.env.example](backend/.env.example). |
+| `STELLAR_SECRET_KEY` | Secret seed for the dedicated testnet project payer. Keep it server-side. The payer needs test XLM and a USDC trustline. |
+| `FACILITATOR`, `FACILITATOR_PRIMARY_URL`, `FACILITATOR_PRIMARY_API_KEY`, `FACILITATOR_BACKUP_URL` | Select the matching provider explicitly. OpenZeppelin needs a valid primary key. The public backup currently advertises x402 exact settlement on Stellar testnet. |
+| `AGENT_PLANNER=ai`, `OPENAI_API_KEY`, `OPENAI_MODEL` | Optional AI summaries for clients and contractors. No OpenAI key is needed for the default scripted workflow. |
 
-From the repository root, run `python3 -m http.server 8080` and open [the frontend preview](http://127.0.0.1:8080/frontend/prototype.html). No packages or backend setup are needed. Use **Explore screens** to switch roles, find a Figma frame, or view dark-mode and mobile variants.
+To configure an optional service, run the following from `backend`, then edit `.env`. Keep wallet seeds, access tokens, user data and state files out of Git.
 
-The frontend uses sample data. It does not sign in, send WhatsApp messages, or submit payments. See the [screen checklist](frontend/SCREENS.md) for routes and visual checks.
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
 
-## Working prototype
+### Stellar testnet walkthrough
 
-The prototype currently runs locally. We have not added a public demo link yet.
+Choose **Stellar testnet** when creating the project. The client saves their public account in **Your profile**, then makes a single classic USDC payment from that wallet to the displayed funding account. Use the project’s displayed **hash memo**, encoded in base64. Enter the amount and Stellar transaction hash in **Fund project**. PayShare checks the network, token issuer, amount, source, destination and memo, and rejects previously recorded transactions.
 
-To try the development version, follow the setup instructions in [the testnet guide](backend/docs/payshare-testnet.md) on the `feature/whatsapp` branch.
+The worker saves their own public Stellar account before the contractor assigns the task. After all required approvals, **Authorize Stellar testnet payout** checks the project budget and payment history, checks the facilitator’s capabilities, and reserves one attempt before asking the facilitator to verify and settle it. PayShare marks the payout paid only after finding the exact USDC transfer on Stellar testnet. If settlement is uncertain, the payout stays locked and must be reconciled. Ordinary project actions continue during a facilitator outage.
 
-After starting the backend, open:
+AI mode can summarize project totals and the scripted agent’s eligibility results. Only aggregate status data is sent for that optional request. The same code makes all funding and payout decisions in either mode.
 
-`http://127.0.0.1:4021/money`
+## Tests
 
-This address works on the computer running the app. It is **not** a public website. A hosted prototype link will be added here when one is available.
+```powershell
+# From backend
+npm.cmd test
+node --test ..\frontend\prototype\navigation.test.mjs
+```
 
-## Tools we use
+The browser test starts its own server and uses temporary user and project files.
 
-- **JavaScript and Node.js:** Backend logic
-- **Express:** API and local web server
-- **Stellar testnet:** Test payments without using real money
-- **USDC:** The token used for payments
-- **x402:** Payment requests and settlement
-- **HTML, CSS, and JavaScript:** Prototype screens
+```powershell
+npm.cmd install --no-save --package-lock=false playwright
+npx.cmd playwright install chromium
+$env:PLAYWRIGHT_MODULE = (Resolve-Path .\node_modules\playwright).Path
+node ..\frontend\test\mvp.cjs
+$env:PAYSHARE_MVP_MOBILE = '1'
+node ..\frontend\test\mvp.cjs
+Remove-Item Env:\PAYSHARE_MVP_MOBILE
+```
 
-## Current limitations
+Backend tests cover session and role checks, invitation reuse, funding limits, allocations, approvals, missing history, and failed or mismatched settlements. The checkout was tested through a local facilitator and test ledger. A real Stellar testnet payment was not submitted. A read-only query verified the public backup advertises Stellar testnet support. See [facilitator troubleshooting](backend/docs/troubleshooting.md) for credential errors.
 
-PayShare currently uses one sample project and local access tokens. We still need to connect it to the team's full account, project, and task system. WhatsApp messages are prepared as drafts and sent manually.
+## Limits and hosting handoff
 
-The payment demo is for **Stellar testnet only**. It is not ready to handle real customer money.
+- Email ownership verification, password recovery and automatic message delivery require an external delivery service. They are disabled and labeled in the app.
+- Task submissions store text or a link. The app does not host attachments. Team members manually refresh project data to see updates from other accounts.
+- The connected app uses the original Figma frames. Features without an API, such as allocation change requests, attachments and voice notes, display an availability message.
 
-## Project status
+### Deployment handoff
 
-PayShare is being built as part of the **EmpowerHer Hackathon**. We are testing the main payment flow and bringing the different parts of the project together.
+1. Use a Node.js 22 or newer host and a checkout containing both `backend` and `frontend`. Set the service working directory to `backend`, the install command to `npm ci`, and the start command to `npm start`.
+2. Run one application instance. Mount a persistent volume, set `PAYSHARE_USERS_FILE` and `PAYSHARE_WORKSPACE_FILE` to separate files on it, and give the application write access. For a new workspace, run `npm run init:workspace` once with those settings. Back up both files together. Restore and reconcile damaged or missing history before resuming payouts.
+3. Expose the host's `PORT` over HTTPS and set `PAYSHARE_SECURE_COOKIES=true`. Open the root URL and run the demo in simulation mode first. Enable testnet payouts only after preparing the wallets and configuring a facilitator.
 
 ## Acknowledgement
 
-The project builds on the x402 Stellar EmpowerHer workshop starter kit by KoxyG.
+PayShare builds on the x402 Stellar EmpowerHer workshop starter kit by KoxyG.

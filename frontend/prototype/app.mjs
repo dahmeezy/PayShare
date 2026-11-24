@@ -1,6 +1,7 @@
 import { addPasswordToggle, demoCode, validContact, wireCode } from "./auth-controls.mjs";
 import { downloadSample, editorDialog, filterItems, messageDialog, openDialog, pickFiles, restoreMockFields, saveMockFields, showFiles, wireChoices } from "./demo-interactions.mjs";
 import { demoMessages, readPreference, roles, savePreference } from "./mock-data.mjs";
+import { liveApplication, liveMode } from "./live.mjs";
 import { authoredRoutes, displayRoute, groups, normalize, roleFor, roleLinks, targetFor } from "./navigation.mjs";
 
 const screen = document.querySelector("#screen");
@@ -32,6 +33,8 @@ const [frames, authoring] = await Promise.all(["screens.json", "reactions.json"]
 });
 const index = new Map(frames.map(view => [view.route, view]));
 const authored = authoredRoutes(authoring);
+const live = liveMode ? liveApplication({ screen, render, roles, roleFor, announce }) : null;
+if (live) await live.start();
 
 function announce(message) {
   clearTimeout(statusTimer);
@@ -50,7 +53,7 @@ function cleanName(name) {
 function href(route) { return "#/" + route; }
 function goto(route) {
   if (route === "@home") route = roles[role].home;
-  if (index.has(route) || route === "reset-password") location.hash = href(route);
+  if (index.has(route) || route === "reset-password") location.hash = live?.hash(route) || href(route);
 }
 function labelOf(node) {
   return node.innerText.trim().replace(/\s+/g, " ");
@@ -150,8 +153,11 @@ function installSearch(node) {
     if (event.key !== "Enter") return;
     event.stopPropagation();
     if (node.closest('[data-layer="Top bar"], [data-layer="App bar"]')) {
-      search.value = input.value;
-      showCatalog(role);
+      if (live) live.search(input.value);
+      else {
+        search.value = input.value;
+        showCatalog(role);
+      }
     } else runFilter();
   });
   text.replaceWith(input);
@@ -278,6 +284,15 @@ function demoAction(button, label, route, layer, scope) {
 }
 
 function showSettings(title = "Settings") {
+  if (live) return openDialog(title, dialog => {
+    for (const [label, run] of [["Profile", () => live.openProfile()], ["Switch theme", () => switchTheme()],
+      ["Sign out", () => live.logout()]]) {
+      const button = element("button", label);
+      button.className = "demo-dialog-button";
+      button.addEventListener("click", () => { dialog.close(); run(); });
+      dialog.append(button);
+    }
+  });
   return openDialog(title, dialog => {
     dialog.append(element("p", roles[role].label + " demo preferences"));
     const theme = element("button", dark ? "Use light theme" : "Use dark theme");
@@ -301,7 +316,7 @@ function showRoleMenu() {
         nav.append(settings);
       } else {
         const link = element("a", label);
-        link.href = href(target);
+        link.href = live?.hash(target) || href(target);
         link.addEventListener("click", () => dialog.close());
         nav.append(link);
       }
@@ -351,6 +366,8 @@ function installAction(node, label, route) {
     if (button.closest("[inert]")) return;
     const modal = screen.querySelector('[data-layer="Modal"]');
     const scope = modal || screen;
+    if (live && /^a0[23]$/.test(route) && submits && focusInvalid(scope)) return;
+    if (live?.handle(button, label, route, scope, target, layer)) return;
     if (target === "@verify") {
       if (verifyCode?.()) {
         const next = verificationPurpose === "reset" ? "reset-password" : verificationPurpose === "login" ? "@home" : "a07";
@@ -417,7 +434,9 @@ function installAction(node, label, route) {
 const cleanInvite = label => /^(join project|accept invitation)$/i.test(label);
 
 function closeScreen(route) {
-  const base = route.replace(/-dark$/, "");
+  const base = route.replace(/-(dark|360)$/, "");
+  if (live && base === "c16" && live.accountRole() === "client") { goto("d09"); return; }
+  if (live && base === "c24") { goto("c23"); return; }
   const parent = ({
     c12:"c11", c14:"c10", c16:"c15", mc05:"mc04", mc07:"mc02", mc08:"mc02", mc09:"mc01",
     mw03:"mw02", mw04:"mw03", mw05:"mw03", mw06:"mw03", mw08:"mw07", mw09:"mw03", md05:"md01", md06:"md01",
@@ -593,8 +612,8 @@ function wireScreen(route) {
       });
     }
   }
-  if (route === "a06") installInvite();
-  restoreMockFields(screen, route);
+  if (route === "a06" && !live) installInvite();
+  if (!live) restoreMockFields(screen, route);
   if (container) container.setAttribute("aria-label", cleanName(frame.name));
   if (roleFor(route) && !screen.querySelector('[data-layer="Bottom nav"]')) {
     const menu = element("button", roles[role].label + " menu");
@@ -607,14 +626,15 @@ function wireScreen(route) {
 async function render() {
   if (!index.size) return;
   const version = ++renderVersion;
-  const route = location.hash.match(/^#\/([\w-]+)$/)?.[1] || "a01";
+  const requested = location.hash.match(/^#\/([\w-]+)(?:\?.*)?$/)?.[1] || "a01";
+  const route = live?.route(requested) || requested;
   const reset = route === "reset-password";
   const wanted = reset ? "a04" : index.has(route) ? route : "a01";
   const target = displayRoute(wanted, index, {
     narrow: narrow.matches, compact: compact.matches, dark,
   });
   const view = index.get(target) || index.get(wanted);
-  const currentRole = roleFor(view.route);
+  const currentRole = live?.accountRole() || roleFor(view.route);
   if (currentRole) {
     role = currentRole;
     savePreference("role", role);
@@ -623,6 +643,7 @@ async function render() {
   frame = view;
   document.title = title + " | PayShare";
   screen.setAttribute("aria-busy", "true");
+  if (live) screen.inert = true;
   screen.dataset.route = reset ? route : view.route;
   screen.className = view.width <= 420 ? "phone" : "desktop";
   screen.classList.toggle("appearance-dark", view.route.endsWith("-dark") || dark);
@@ -634,6 +655,7 @@ async function render() {
     const response = await fetch(new URL("views/" + view.route + ".html", import.meta.url));
     if (!response.ok) throw new Error("This demo screen is temporarily unavailable.");
     const html = await response.text();
+    await live?.prepare(reset ? route : view.route, () => version === renderVersion);
     if (version !== renderVersion) return;
     const template = document.createElement("template");
     template.innerHTML = html;
@@ -642,11 +664,13 @@ async function render() {
       if (!node.getAttribute("href").startsWith("#/")) node.removeAttribute("href");
     });
     wireScreen(screen.dataset.route);
-    if (!hideChrome && screen.classList.contains("sample-payment")) {
+    live?.install(screen.dataset.route);
+    if (!live && !hideChrome && screen.classList.contains("sample-payment")) {
       const banner = element("p", demoMessages.payment);
       banner.className = "payment-note";
       screen.prepend(banner);
     }
+    screen.inert = false;
     const modal = screen.querySelector('[data-layer="Modal"]');
     if (modal) modal.focus({ preventScroll:true });
     else if (document.activeElement?.id !== "explore") screen.focus({ preventScroll:true });
@@ -654,7 +678,10 @@ async function render() {
   } catch (error) {
     if (version === renderVersion) screen.replaceChildren(element("p", error.message));
   } finally {
-    if (version === renderVersion) screen.removeAttribute("aria-busy");
+    if (version === renderVersion) {
+      screen.inert = false;
+      screen.removeAttribute("aria-busy");
+    }
   }
 }
 function setCatalogItems() {
@@ -689,7 +716,7 @@ function showCatalog(scope = "", phrase = search.value) {
 function switchTheme(next = !dark) {
   dark = next;
   savePreference("theme", dark ? "dark" : "light");
-  const current = location.hash.match(/^#\/([\w-]+)$/)?.[1];
+  const current = location.hash.match(/^#\/([\w-]+)(?:\?.*)?$/)?.[1];
   if (current?.endsWith("-dark")) goto(current.replace(/-dark$/, ""));
   else render();
   announce(dark ? "Dark theme" : "Light theme");
@@ -732,6 +759,10 @@ window.addEventListener("keydown", (event) => {
 });
 narrow.addEventListener("change", render);
 compact.addEventListener("change", render);
+if (live) {
+  document.querySelector("#demo").hidden = true;
+  document.body.classList.add("workspace-live");
+}
 if (hideChrome) {
   document.querySelector("#demo").hidden = true;
   document.body.classList.add("compare-view");

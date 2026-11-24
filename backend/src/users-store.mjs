@@ -2,20 +2,19 @@
 // Passwords are never stored directly; only the hash is kept. Password is set
 // during registration and verified during login. Password is never logged.
 
-import { randomUUID, pbkdf2Sync, timingSafeEqual } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { randomBytes, randomUUID, pbkdf2Sync, timingSafeEqual } from "node:crypto";
+import { readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
 import path from "node:path";
+import { StrKey } from "@stellar/stellar-sdk";
 
 const USERS_FILE = path.resolve(process.env.PAYSHARE_USERS_FILE || "users.json");
-const SALT_ROUNDS = 10;
-
-const emptyUsers = () => ({});
+const PASSWORD_ITERATIONS = 600_000;
 
 // Hash password using PBKDF2 (built-in Node.js, no extra deps)
 // Returns: { salt, hash } as hex strings
 export const hashPassword = (password) => {
-  const salt = randomUUID().substring(0, 16);
-  const hash = pbkdf2Sync(password, salt, SALT_ROUNDS, 64, "sha256");
+  const salt = randomBytes(16).toString("hex");
+  const hash = pbkdf2Sync(password, salt, PASSWORD_ITERATIONS, 32, "sha256");
   return {
     salt,
     hash: hash.toString("hex"),
@@ -23,8 +22,10 @@ export const hashPassword = (password) => {
 };
 
 export const verifyPassword = (password, salt, storedHash) => {
-  const hash = pbkdf2Sync(password, salt, SALT_ROUNDS, 64, "sha256");
+  if (typeof salt !== "string" || typeof storedHash !== "string" || !/^(?:[a-f0-9]{64}|[a-f0-9]{128})$/.test(storedHash)) return false;
   const expected = Buffer.from(storedHash, "hex");
+  const iterations = expected.length === 64 ? 10 : PASSWORD_ITERATIONS;
+  const hash = pbkdf2Sync(password, salt, iterations, expected.length, "sha256");
   return expected.length === hash.length && timingSafeEqual(hash, expected);
 };
 
@@ -36,23 +37,30 @@ const validateUser = (user) => {
   if (!user || typeof user.email !== "string") errors.push("Valid email required");
   if (!user || !["contractor", "worker", "client"].includes(user.role))
     errors.push('Role must be one of: contractor, worker, client');
-  if (user.stellar_address && !/^G[A-Z0-9]{56}$/.test(user.stellar_address))
+  if (user.stellar_address && !StrKey.isValidEd25519PublicKey(user.stellar_address))
     errors.push("Stellar address must be a valid public key (G...)");
   return errors;
 };
 
 export function readUsers() {
-  let saved;
   try {
-    saved = JSON.parse(readFileSync(USERS_FILE, "utf8"));
-  } catch {
-    saved = emptyUsers();
+    const saved = JSON.parse(readFileSync(USERS_FILE, "utf8"));
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) throw new Error("Invalid user store");
+    return Object.assign(Object.create(null), saved);
+  } catch (error) {
+    if (error.code === "ENOENT") return Object.create(null);
+    throw Object.assign(new Error("User records are unavailable"), { status: 503 });
   }
-  return { ...emptyUsers(), ...saved };
 }
 
 export function writeUsers(users) {
-  writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), { mode: 0o600 });
+  const temporary = USERS_FILE + "." + randomUUID() + ".tmp";
+  try {
+    writeFileSync(temporary, JSON.stringify(users, null, 2), { mode: 0o600, flag: "wx" });
+    renameSync(temporary, USERS_FILE);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
 }
 
 export function createUser({ name, email, role, stellarAddress, password }) {
@@ -129,11 +137,17 @@ export function listUsers(role) {
 
 // Login: verify email/password and return user without password
 export function loginUser(email, password) {
-  const user = getUserByEmail(email);
-  if (!user) return null;
-  if (!verifyPassword(password, user.password_salt, user.password_hash)) return null;
-  // Return user object without sensitive password data
-  const { password_hash, password_salt, ...safeUser } = user;
+  const users = readUsers();
+  const key = email.toLowerCase().trim();
+  const user = users[key];
+  if (!user || !verifyPassword(password, user.password_salt, user.password_hash)) return null;
+  if (user.password_hash.length === 128) {
+    const { hash, salt } = hashPassword(password);
+    user.password_hash = hash;
+    user.password_salt = salt;
+    writeUsers(users);
+  }
+  const { password_hash, password_salt, sessions, ...safeUser } = user;
   return safeUser;
 }
 

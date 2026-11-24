@@ -2,7 +2,7 @@
 // Every route in PAID_ROUTES costs USDC per request; everything else is free.
 // This server never touches the blockchain: the facilitator verifies and settles each payment on Stellar.
 import express from "express";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { StrKey } from "@stellar/stellar-sdk";
 import { paymentMiddlewareFromHTTPServer, x402HTTPResourceServer, x402ResourceServer } from "@x402/express";
 import { HTTPFacilitatorClient } from "@x402/core/server";
@@ -10,6 +10,9 @@ import { ExactStellarScheme } from "@x402/stellar/exact/server";
 import { config } from "./settings.mjs";
 import { moneyRouter } from "./money-api.mjs";
 import { createAuthRouter } from "./auth-router.mjs";
+import { createWorkspaceRouter } from "./workspace-api.mjs";
+import { createSettlement } from "./workspace-settlement.mjs";
+import { createAiStatus } from "./ai-status.mjs";
 
 const PAID_ROUTES = {
   "GET /sun-forecast":    { price: 0.001, description: "Today's solar conditions: sun hours, cloud cover, rain chance" },
@@ -71,7 +74,7 @@ function paidRequests({ usdc, network, facilitator, recipient }) {
   };
 }
 
-export function createApp(settings = config) {
+export function createApp(settings = config, payment = {}) {
   const { usdc, network } = settings;
   const app = express();
 
@@ -140,6 +143,18 @@ export function createApp(settings = config) {
   });
 
   // ── Auth routes ────────────────────────────────────────────
+  app.disable("x-powered-by");
+  app.get("/", (_req, res) => res.redirect("/frontend/prototype.html?app=1"));
+  app.use("/frontend", express.static(fileURLToPath(new URL("../../frontend", import.meta.url)), { index: false }));
+  app.use("/api", (req, res, next) => {
+    // Browsers include Origin on cross-site writes. The session cookie is also SameSite=Strict.
+    const origin = req.get("origin");
+    if (origin && !["GET", "HEAD", "OPTIONS"].includes(req.method) && (!URL.canParse(origin) || new URL(origin).host !== req.get("host"))) {
+      return res.status(403).json({ error: "This request must come from PayShare" });
+    }
+    next();
+  });
+  app.use("/api/workspace", createWorkspaceRouter(payment.settlement || createSettlement(settings), payment.verifyFunding, createAiStatus(settings)));
   app.use("/api", createAuthRouter());
 
   app.use("/api", moneyRouter);
@@ -147,7 +162,7 @@ export function createApp(settings = config) {
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
     const status = error.status || (error.message === "Invalid credentials" ? 401 : 400);
-    res.status(status).json({ error: status >= 500 ? "Internal server error" : error.message });
+    res.status(status).json({ error: status >= 500 && !error.expose ? "Internal server error" : error.message });
   });
   return app;
 }
