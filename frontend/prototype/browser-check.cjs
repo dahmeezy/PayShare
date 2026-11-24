@@ -17,6 +17,20 @@ const wait = route => page.waitForFunction(route => {
 const go = async(route, expected=route) => {await page.goto(url+"#/"+route);await wait(expected);};
 const click = text => page.locator("#screen .demo-action").filter({hasText:text}).first().click({timeout:5500});
 const input = text => page.getByLabel(text,{exact:true});
+async function checkPlaceholder(label, expected) {
+ const field = input(label);
+ assert.equal(await field.getAttribute("placeholder"), expected);
+ const style = await field.evaluate(node => {
+   const hint = getComputedStyle(node, "::placeholder");
+   const label = node.parentElement.previousElementSibling;
+   return { weight:Number(hint.fontWeight), labelWeight:Number(getComputedStyle(label).fontWeight),
+     hint:hint.color, value:getComputedStyle(node).color };
+ });
+ assert.equal(style.weight, 400);
+ assert.ok(style.labelWeight > style.weight);
+ assert.notEqual(style.hint, style.value);
+ return style.hint;
+}
 async function enter(text) {
  const first=page.getByLabel("Verification digit 1");
  await first.focus();
@@ -29,6 +43,7 @@ try {
  await go("a01");
  await click("Create a free account");
  await wait("a02");
+ const lightPlaceholder = await checkPlaceholder("Full name", "Enter your full name");
  await click("Create account");
  assert.equal(await page.evaluate(()=>document.activeElement.getAttribute("aria-label")),"Full name");
  await input("Full name").fill("Demo Person");
@@ -66,6 +81,7 @@ try {
  await page.getByRole("button",{name:"Back to welcome"}).click();await wait("a01");
  await go("wa01");await click("View invitation");await wait("a06");
  await page.getByRole("button",{name:"Accept invitation"}).click();
+ await checkPlaceholder("WhatsApp number", "e.g. +234 801 234 5678");
  await input("Your name").fill("Demo Worker");
  await input("WhatsApp number").fill("+234 803 555 0192");
  await click("Join project");await wait("w01");
@@ -77,6 +93,7 @@ try {
  await input("Email or WhatsApp number").fill("demo@example.test");
  await click("Send reset link");await wait("a05");
  await enter("481026");await click("Verify");await wait("reset-password");
+ await checkPlaceholder("Confirm password", "Re-enter your password");
  await input("New password").fill("sample-pass");
  await input("Confirm password").fill("different-pass");
  assert.equal(await page.getByRole("button",{name:"Show password"}).count(),2);
@@ -112,6 +129,10 @@ try {
  await go("d01");await page.locator('[data-layer="Sidebar item"]').filter({hasText:"Settings"}).click();
  await page.getByRole("dialog",{name:"Settings"}).getByText("Client demo preferences").waitFor();
  await page.getByRole("button",{name:"Use dark theme"}).click();await wait("d01-dark");
+ await go("a03");
+ const darkPlaceholder = await checkPlaceholder("Password", "Enter your password");
+ assert.notEqual(darkPlaceholder, lightPlaceholder);
+ await go("d01","d01-dark");
  await page.getByRole("button",{name:"Explore screens"}).click();
  await page.getByRole("button",{name:"Switch theme"}).click();await wait("d01");
  await page.keyboard.press("Escape");
