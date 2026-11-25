@@ -315,3 +315,5 @@
 #screen.appearance-dark [data-layer="Modal"] .live-field { color: var(--figma-color-text-primary-142b45, #f2f5f9); }
 /* One frame draws its whole bell button as a light image. */
 #screen.theme-adapted [data-layer="Top bar"] [data-layer="Bell"] > img { filter: invert(.86) hue-rotate(180deg); }
+/* Real buttons for the icons in phone headers. */
+#screen .ps-bar-button { padding: 0; cursor: pointer; }

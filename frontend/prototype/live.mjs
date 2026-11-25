@@ -8,7 +8,7 @@ import { openDialog } from "./demo-interactions.mjs";
 import { bindDashboard, bindIdentity } from "./live-dashboard.mjs";
 import { bindApprovals, bindBudget, bindPayments, bindProjects, bindTaskList } from "./live-records.mjs";
 import { configureForm, fieldValue, validateFields } from "./live-details.mjs";
-import { tidy } from "./live-cleanup.mjs";
+import { tidy, wireAppBar } from "./live-cleanup.mjs";
 import { action, clean, context, empty, initials, labelAction, layer, layers, match, money, paragraphs, payoutStatus,
   put, replaceEntries, rowLink, slots, stats, taskStatus } from "./live-elements.mjs";
 
@@ -609,6 +609,8 @@ export function liveApplication({ screen, render, roleFor, roles, announce, setA
       }
       if (route === "a06") invitationControls(form);
       if (!canUse() || !roleFor(route)) return;
+      wireAppBar(screen, { user, data, go: destination => go(destination, data.project),
+        markRead: () => api(workspace + "/notifications/read", "POST", {}).then(() => render()).catch(error => announce(error.message)) });
       if (rendersTask(route)) {
         // Phone frames without a content area are rebuilt by the task screen itself.
         bindIdentity(screen, user, data);
@@ -624,7 +626,7 @@ export function liveApplication({ screen, render, roleFor, roles, announce, setA
       }
       bindIdentity(screen, user, data);
       const bell = layer(screen, "Bell");
-      if (bell && !layer(bell, "icon/check")) {
+      if (bell) {
         const unread = data.feed?.unread || 0;
         for (const dot of [...bell.children].slice(1)) dot.remove();
         bell.classList.toggle("ps-unread", unread > 0);

@@ -211,6 +211,29 @@ async function main() {
     await worker.call("PUT", "/preferences", { notifications: { inApp: true } });
     passed("notification feed, read state, deep links and the in-app switch");
 
+    // ── Search results and phone header buttons ──
+    await visit(contractor.page, "c01");
+    const search = contractor.page.getByRole("searchbox", { name: /Search projects/ });
+    await search.fill("lights");
+    await search.press("Enter");
+    await contractor.page.waitForTimeout(400);
+    await ready(contractor.page, "c01");
+    await contractor.page.getByRole("dialog").getByRole("button", { name: "Hang the lights" }).click();
+    await ready(contractor.page, "c20");
+    for (const [role, who] of Object.entries(sessions)) {
+      await who.page.setViewportSize({ width: 390, height: 900 });
+      await visit(who.page, home[role], "m" + home[role]);
+      await who.page.locator('#screen [data-layer="App bar"]').getByRole("button", { name: /^Notifications/ }).click();
+      await ready(who.page, { client: "d10", contractor: "mc10", worker: "w13" }[role]);
+      await who.page.setViewportSize({ width: 1440, height: 900 });
+    }
+    await contractor.page.setViewportSize({ width: 390, height: 900 });
+    await visit(contractor.page, "c15", "mc06");
+    await contractor.page.getByRole("button", { name: "Invite a worker" }).click();
+    await ready(contractor.page, "c16");
+    await contractor.page.setViewportSize({ width: 1440, height: 900 });
+    passed("search lists its results and phone header buttons work");
+
     // ── Roles stay in their own workspace ──
     for (const [role, who] of Object.entries(sessions)) {
       for (const other of Object.keys(home).filter(entry => entry !== role)) {
@@ -258,10 +281,14 @@ async function main() {
               over: document.documentElement.scrollWidth - innerWidth,
               text: document.querySelector("#screen").innerText,
               empty: document.querySelector("#screen").innerText.trim().length < 20,
+              // An icon that looks like a header button must be one.
+              inert: [...document.querySelectorAll('#screen [data-layer="App bar"] > :is([data-layer="Bell"], [data-layer="Right"], [data-layer="Header action"])')]
+                .filter(node => node.getClientRects().length && node.querySelector('[data-layer^="icon/"]') && !node.matches("a,button")).length,
             }));
             const where = [role, route, width, theme].join(" ");
             if (state.over > 0) problems.push("scrolls sideways: " + where);
             if (state.empty) problems.push("blank: " + where);
+            if (state.inert) problems.push("header icon does nothing: " + where);
             const leak = state.text.match(sample);
             if (leak) problems.push("sample content “" + leak[0] + "”: " + where);
             if (shots) await page.screenshot({ path: join(shots, [role, route, width, theme].join("-") + ".png"), fullPage: true });

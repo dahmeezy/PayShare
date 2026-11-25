@@ -171,6 +171,8 @@ function installSearch(node) {
   });
   input.addEventListener("keydown", event => {
     if (event.key !== "Enter") return;
+    // Otherwise the same key press activates the first result as the dialog takes focus.
+    event.preventDefault();
     event.stopPropagation();
     if (node.closest('[data-layer="Top bar"], [data-layer="App bar"]')) {
       if (live) live.search(input.value);

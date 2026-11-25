@@ -31,16 +31,43 @@ function download(user, data) {
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 function exportControl(screen, user, data) {
-  const control = action(screen, /^(export( csv)?|download statement)$/i)
-    || screen.querySelector('[data-layer="App bar"] .demo-action:has([data-layer="icon/download"], [data-layer="icon/file-text"])');
+  const control = action(screen, /^(export( csv)?|download statement)$/i);
   if (!control) return;
   control.hidden = false;
-  if (!control.textContent.trim()) control.setAttribute("aria-label", "Download statement (CSV)");
   // Replacing the node drops the sample handler.
   const real = control.cloneNode(true);
   delete real.dataset.liveRoute;
   real.addEventListener("click", event => { event.preventDefault(); download(user, data); });
   control.replaceWith(real);
+}
+
+// Phone frames draw header buttons as bare icons. Each one either does what its icon says
+// or is removed; none is left looking pressable without working.
+export function wireAppBar(screen, { user, data, go, markRead }) {
+  const bar = layer(screen, "App bar");
+  const actions = {
+    bell: ["Notifications", () => go({ client: "d10", contractor: "c32", worker: "w13" }[user.role])],
+    check: ["Mark all as read", markRead],
+    download: ["Download statement (CSV)", () => download(user, data)],
+    file: ["Download statement (CSV)", () => download(user, data)],
+    "user-plus": ["Invite a worker", () => go("c16")],
+    x: ["Close", () => go("c18")],
+  };
+  for (const node of [...(bar?.children || [])]) {
+    if (!["Bell", "Right"].includes(node.dataset.layer)) continue;
+    const name = node.querySelector('[data-layer^="icon/"]')?.dataset.layer.slice(5);
+    if (!name) continue;
+    if (!Object.hasOwn(actions, name)) { node.remove(); continue; }
+    const [label, run] = actions[name];
+    const control = document.createElement("button");
+    control.type = "button";
+    control.className = node.className.replace("demo-action", "").trim() + " ps-bar-button";
+    control.dataset.layer = name === "bell" ? "Bell" : "Header action";
+    control.setAttribute("aria-label", label);
+    control.append(...node.childNodes);
+    control.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); run(); });
+    node.replaceWith(control);
+  }
 }
 
 function budgetPreview(content) {
