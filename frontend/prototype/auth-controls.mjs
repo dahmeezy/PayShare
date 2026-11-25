@@ -59,8 +59,8 @@ export function validContact(value) {
     /^\+?\d{7,15}$/.test(contact.replace(/[ ()-]/g, ""));
 }
 
-export function wireCode(inputs, feedback) {
-  const read = () => inputs.map(input => input.value).join("");
+// Digit-by-digit entry with paste, autofill, arrows and backspace. Returns a reader.
+export function wireCodeInputs(inputs, feedback) {
   const clearError = () => {
     for (const input of inputs) input.removeAttribute("aria-invalid");
     feedback.textContent = "";
@@ -69,14 +69,25 @@ export function wireCode(inputs, feedback) {
     inputs[index]?.focus();
     inputs[index]?.select();
   };
+  const spread = (digits, index) => {
+    const start = digits.length >= inputs.length ? 0 : index;
+    [...digits.slice(0, inputs.length)].forEach((digit, offset) => {
+      if (inputs[start + offset]) inputs[start + offset].value = digit;
+    });
+    clearError();
+    focus(Math.min(start + digits.length, inputs.length - 1));
+  };
   inputs.forEach((input, index) => {
     input.inputMode = "numeric";
-    input.maxLength = 1;
+    // The first box takes a whole code from the browser or keyboard autofill.
+    input.maxLength = index ? 1 : inputs.length;
     input.pattern = "[0-9]";
-    input.autocomplete = "off";
+    input.autocomplete ||= "off";
     input.addEventListener("focus", () => input.select());
     input.addEventListener("input", () => {
-      input.value = input.value.replace(/\D/g, "").slice(-1);
+      const digits = input.value.replace(/\D/g, "");
+      if (digits.length > 2) return spread(digits, index);
+      input.value = digits.slice(-1);
       clearError();
       if (input.value && index < inputs.length - 1) focus(index + 1);
     });
@@ -92,16 +103,20 @@ export function wireCode(inputs, feedback) {
     });
     input.addEventListener("paste", (event) => {
       event.preventDefault();
-      const digits = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, inputs.length);
-      if (!digits) return;
-      const start = digits.length === inputs.length ? 0 : index;
-      [...digits].forEach((digit, offset) => {
-        if (inputs[start + offset]) inputs[start + offset].value = digit;
-      });
-      clearError();
-      focus(Math.min(start + digits.length, inputs.length - 1));
+      const digits = event.clipboardData.getData("text").replace(/\D/g, "");
+      if (digits) spread(digits, index);
     });
   });
+  return () => inputs.map(input => input.value).join("");
+}
+
+// The sample-data prototype checks against its fixed demo code.
+export function wireCode(inputs, feedback) {
+  const read = wireCodeInputs(inputs, feedback);
+  const focus = (index) => {
+    inputs[index]?.focus();
+    inputs[index]?.select();
+  };
   return () => {
     const code = read();
     if (code === demoCode) return true;

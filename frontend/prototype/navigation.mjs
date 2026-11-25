@@ -11,6 +11,9 @@ const mobile = {
   w08: "mw07", w09: "mw08", w10: "mw09", w12: "mw10",
   d01: "md01", d03: "md02", d04: "md03", d05: "md04", d06: "md05", d07: "md06",
 };
+// Screens Figma only draws for another role or size. They reuse a desktop frame's
+// sidebar and top bar, and the app fills in the content.
+export const virtualViews = { w33: "w01", d33: "d01", d10: "d01" };
 export const roleFor = (route) => /^(mc|c)\d/.test(route) ? "contractor"
   : /^(mw|w)\d/.test(route) ? "worker" : /^(md|d)\d/.test(route) ? "client" : "";
 export function displayRoute(route, screenIndex, { narrow, compact, dark }) {

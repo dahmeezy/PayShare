@@ -2,6 +2,26 @@
 
 Endpoints grouped by owner. REST conventions, JSON request/response. Handoff points marked H1–H6.
 
+## Accounts, onboarding and notifications (current)
+
+All paths are under `/api`, same origin, with the session cookie. These describe the running server.
+
+| Endpoint | Who | Body and result |
+| --- | --- | --- |
+| `POST /register` | anyone | `firstName, lastName, email, password, acceptTerms: true`, optional `invitationToken` or `role`. Creates an unverified account, emails a code. |
+| `POST /login` | anyone | `email, password, remember` |
+| `POST /verify` | signed in | `{ code }`. `400` wrong, `410` expired, `429` too many attempts. |
+| `POST /verify/resend` | signed in | `429` within 60s or after 5 per hour, `503` delivery not configured, `502` provider failed. |
+| `PUT /profile` | verified | `firstName, lastName`, optional `stellarAddress` (empty removes it) |
+| `PUT /preferences` | verified | any of `notifications.{email,inApp}`, `appearance` (`light`/`dark`/`system`), `textSize` |
+| `PUT /password` | verified | `currentPassword, password`; signs out other sessions |
+| `PUT /onboarding/role` | verified, not invited | `{ role }`, only until setup is finished |
+| `POST /onboarding/complete` | verified with a role | marks setup finished |
+| `POST /onboarding/tour` | verified | `{ status: "completed" \| "skipped" }` |
+| `GET /workspace/notifications`, `POST /workspace/notifications/read` | verified with a role | role-scoped feed and unread count |
+
+Workspace endpoints answer `403` until the email is verified and a role is set.
+
 ## Owner A Endpoints
 
 ### GET /users

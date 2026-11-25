@@ -22,7 +22,7 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm test
-      - run: node --test ../frontend/prototype/navigation.test.mjs
+      - run: node --test ../frontend/prototype/*.test.mjs
   attribution-check:
     name: attribution-check
     runs-on: ubuntu-latest

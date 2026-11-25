@@ -50,6 +50,9 @@ On shared projects (an event, a build, a creative job) one person usually collec
 | --- | --- |
 | **Projects and budget** | Create a project, set the budget, record contractor pay and expenses, and see what has been allocated to workers and what remains. |
 | **Funding** | The client records funding in simulation mode or proves a real Stellar testnet USDC payment. PayShare checks the network, issuer, amount, source, destination and memo. |
+| **Verified sign-up** | First and last name, a password strength guide and agreement to the draft [Terms](frontend/legal/terms.html) and [Privacy Policy](frontend/legal/privacy.html). A 6-digit emailed code (10 minutes, 5 attempts, resend after 60 seconds) unlocks the account. |
+| **Onboarding and tour** | Role (skipped for invited people), profile and notification choices, then straight to the dashboard with a short role-specific tour. |
+| **Settings and notifications** | Profile, appearance, notification, security and wallet settings for every role, and an in-app notification feed built from project records. |
 | **Invitations** | Private, single-use invitation links for workers, contractors and clients. The link sets the person's role on the server. |
 | **Tasks with agreed terms** | Each task has a description, an allocation in USDC, and an optional client confirmation. The worker must **accept or decline the terms** before starting. |
 | **Submissions and review** | Workers submit a note or link. Every version is kept. The contractor approves or requests changes, then the client confirms when the task requires it. |
@@ -273,6 +276,8 @@ Back up `/data/users.json` and `/data/payshare-workspace.json` together, for exa
 | `PAYSHARE_USERS_FILE` | `backend/users.json` | Accounts and password hashes. |
 | `PAYSHARE_WORKSPACE_FILE` | `backend/payshare-workspace.json` | Projects, tasks, approvals and payouts. |
 | `PAYSHARE_SECURE_COOKIES` | `false` | Set `true` behind HTTPS. |
+| `RESEND_API_KEY`, `EMAIL_FROM` | – | **Required for new sign-ups.** Resend API key and a sender on a verified domain (see below). |
+| `EMAIL_API_URL` | `https://api.resend.com/emails` | Override only for a compatible provider or a test double. |
 | `PAYSHARE_ENABLE_TESTNET_PAYOUTS` | `false` | Allows Stellar testnet projects once the payer and facilitator are configured. |
 | `STELLAR_*`, `USDC_*` | – | Stellar testnet and Circle USDC settings (see above). |
 | `STELLAR_SECRET_KEY` | – | Secret seed of the dedicated testnet payer. Server-side only. |
@@ -280,6 +285,23 @@ Back up `/data/users.json` and `/data/payshare-workspace.json` together, for exa
 | `AGENT_PLANNER` | `scripted` | `ai` enables optional OpenAI status summaries (`OPENAI_API_KEY`, `OPENAI_MODEL`). |
 
 The full annotated list is in [backend/.env.example](backend/.env.example). Never commit `.env`, wallet seeds or the data files.
+
+## Email verification setup
+
+New accounts must confirm their email address. PayShare sends the code through the [Resend](https://resend.com) HTTP API.
+
+1. Create a Resend account, then add and verify your sending domain (DNS records).
+2. Create an API key with permission to send.
+3. Set both variables on the server (locally in `backend/.env`, never committed):
+
+```bash
+RESEND_API_KEY=re_your_key
+EMAIL_FROM="PayShare <no-reply@your-domain.com>"
+```
+
+4. Restart, sign up with an address you control and enter the code.
+
+Without both values PayShare sends nothing, tells the person delivery is unavailable and keeps the new account locked. Resend's shared `onboarding@resend.dev` sender only delivers to the Resend account owner, so it is suitable for a first check only. Accounts created before verification existed keep working.
 
 ## Payments: simulation and Stellar testnet
 
@@ -296,7 +318,7 @@ The payer needs test XLM and a USDC trustline. Get test USDC from the [Circle fa
 ```bash
 cd backend
 npm test                                          # API, permissions, settlement, health
-node --test ../frontend/prototype/navigation.test.mjs
+node --test ../frontend/prototype/*.test.mjs
 ```
 
 Browser end to end, covering three roles on desktop and mobile:
@@ -309,7 +331,13 @@ PLAYWRIGHT_MODULE="$(pwd)/node_modules/playwright" node ../frontend/test/mvp.cjs
 PLAYWRIGHT_MODULE="$(pwd)/node_modules/playwright" PAYSHARE_MVP_MOBILE=1 node ../frontend/test/mvp.cjs
 ```
 
-The browser test registers all three roles, then runs invitations, funding, the budget, task acceptance, submission, approval, the PIN and the payout. It also checks that the dashboards fill the screen with no horizontal scrolling at 360, 390, 430, 768, 1024, 1440 and 1920px.
+Browser regression checks (verification, settings, notifications, role limits, and every screen at 360–1440px in light and dark):
+
+```bash
+PLAYWRIGHT_MODULE="$(pwd)/node_modules/playwright" node ../frontend/test/regression.cjs
+```
+
+The browser tests use an in-memory email double, so they need no credentials. The browser test registers all three roles, then runs invitations, funding, the budget, task acceptance, submission, approval, the PIN and the payout. It also checks that the dashboards fill the screen with no horizontal scrolling at 360, 390, 430, 768, 1024, 1440 and 1920px.
 
 CI runs the backend and navigation tests and the attribution check on every pull request.
 
@@ -324,7 +352,9 @@ CI runs the backend and navigation tests and the attribution check on every pull
 
 ## Known limits
 
-- Email or WhatsApp delivery, password recovery and account verification need an external provider. They are disabled and clearly labeled in the app. Invitation links are shared manually.
+- Email verification needs Resend (above). Password recovery, notification emails, WhatsApp, SMS and two-step sign-in are not available and are labelled that way. Invitation links are shared manually.
+- Allocation changes, problem reports, voice notes, incomplete-task resolution and client budget approval are drawn in Figma but not built; their screens say so.
+- English is the only supported language. The Terms and Privacy Policy are drafts pending team approval.
 - Submissions store text or a link. File attachments and voice notes are not hosted.
 - Other members' updates appear when you refresh or reopen a screen.
 - Storage is single-instance JSON, so run one replica.

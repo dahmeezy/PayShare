@@ -2,7 +2,7 @@ import { addPasswordToggle, applyAuthPlaceholders, demoCode, validContact, wireC
 import { downloadSample, editorDialog, filterItems, messageDialog, openDialog, pickFiles, restoreMockFields, saveMockFields, showFiles, wireChoices } from "./demo-interactions.mjs";
 import { demoMessages, readPreference, roles, savePreference } from "./mock-data.mjs";
 import { liveApplication, liveMode } from "./live.mjs";
-import { authoredRoutes, displayRoute, groups, normalize, roleFor, roleLinks, targetFor } from "./navigation.mjs";
+import { authoredRoutes, displayRoute, groups, normalize, roleFor, roleLinks, targetFor, virtualViews } from "./navigation.mjs";
 
 const screen = document.querySelector("#screen");
 const catalog = document.querySelector("#catalog");
@@ -18,7 +18,9 @@ let verifyCode;
 let verificationPurpose = "signup";
 let sampleInvitation;
 let catalogRole = "";
-let dark = readPreference("theme", "light") === "dark";
+const systemDark = matchMedia("(prefers-color-scheme: dark)");
+let appearance = localStorage.getItem("payshare-appearance") || "light";
+let dark = isDark();
 let frame;
 let renderVersion = 0;
 let statusTimer;
@@ -33,8 +35,26 @@ const [frames, authoring] = await Promise.all(["screens.json", "reactions.json"]
 });
 const index = new Map(frames.map(view => [view.route, view]));
 const authored = authoredRoutes(authoring);
-const live = liveMode ? liveApplication({ screen, render, roles, roleFor, announce }) : null;
+const live = liveMode ? liveApplication({ screen, render, roles, roleFor, announce, setAppearance, appearance: () => appearance }) : null;
 if (live) await live.start();
+
+function isDark() {
+  return appearance === "dark" || (appearance === "system" && systemDark.matches);
+}
+// "light", "dark" or "system". The choice is kept on this device and, when signed in, on the account.
+function setAppearance(value, { redraw = true } = {}) {
+  appearance = value;
+  localStorage.setItem("payshare-appearance", value);
+  dark = isDark();
+  if (!redraw) return;
+  const current = location.hash.match(/^#\/([\w-]+)(?:\?.*)?$/)?.[1];
+  if (current?.endsWith("-dark")) return goto(current.replace(/-dark$/, ""));
+  // Settings stays in place so the message and focus are not lost.
+  if (/^[cwd]33/.test(screen.dataset.route || "")) {
+    screen.classList.toggle("appearance-dark", dark);
+    screen.classList.toggle("theme-adapted", dark);
+  } else render();
+}
 
 function announce(message) {
   clearTimeout(statusTimer);
@@ -151,6 +171,8 @@ function installSearch(node) {
   });
   input.addEventListener("keydown", event => {
     if (event.key !== "Enter") return;
+    // Otherwise the same key press activates the first result as the dialog takes focus.
+    event.preventDefault();
     event.stopPropagation();
     if (node.closest('[data-layer="Top bar"], [data-layer="App bar"]')) {
       if (live) live.search(input.value);
@@ -284,15 +306,7 @@ function demoAction(button, label, route, layer, scope) {
 }
 
 function showSettings(title = "Settings") {
-  if (live) return openDialog(title, dialog => {
-    for (const [label, run] of [["Profile", () => live.openProfile()], ["Switch theme", () => switchTheme()],
-      ["Sign out", () => live.logout()]]) {
-      const button = element("button", label);
-      button.className = "demo-dialog-button";
-      button.addEventListener("click", () => { dialog.close(); run(); });
-      dialog.append(button);
-    }
-  });
+  if (live) return live.openSettings(title === "Profile" ? "profile" : undefined);
   return openDialog(title, dialog => {
     dialog.append(element("p", roles[role].label + " demo preferences"));
     const theme = element("button", dark ? "Use light theme" : "Use dark theme");
@@ -309,9 +323,9 @@ function showSettings(title = "Settings") {
 // role's Figma phone dashboard, so every mobile screen navigates the same way.
 const phoneDashboards = { contractor: "mc01", worker: "mw01", client: "md01" };
 const phoneTabs = {
-  contractor: [["tasks", /^c(1[89]|2[0-2])$/], ["budget", /^c1[0-4]$/], ["payouts", /^c(2[3-9]|3[01])$/]],
-  worker: [["tasks", /^w0[2-7]$/], ["allocation", /^w(0[89]|10)$/], ["payments", /^w1[12]$/]],
-  client: [["finances", /^d0[345]$/], ["deliverables", /^d0[67]$/], ["payments", /^d0[89]$/]],
+  contractor: [["tasks", /^c(1[89]|2[0-2])$/], ["budget", /^c1[0-4]$/], ["payouts", /^c(2[3-9]|3[01])$/], ["more", /^c3[23]$/]],
+  worker: [["tasks", /^w0[2-7]$/], ["allocation", /^w(0[89]|10)$/], ["payments", /^w1[12]$/], ["more", /^w(13|33)$/]],
+  client: [["finances", /^d0[345]$/], ["deliverables", /^d0[67]$/], ["payments", /^d0[89]$/], ["more", /^d(10|33)$/]],
 };
 const phoneNavCache = new Map();
 function phoneNavigation(roleName) {
@@ -664,22 +678,26 @@ async function render() {
   const requested = location.hash.match(/^#\/([\w-]+)(?:\?.*)?$/)?.[1] || "a01";
   const route = live?.route(requested) || requested;
   const reset = route === "reset-password";
-  const wanted = reset ? "a04" : index.has(route) ? route : "a01";
-  const target = displayRoute(wanted, index, {
+  const base = route.replace(/-(dark|360)$/, "");
+  // Settings and the client's notifications are built on a shared frame in the connected app.
+  const shell = live ? virtualViews[base] || (/^c33$/.test(base) ? "c33" : null) : null;
+  const wanted = reset ? "a04" : shell || (index.has(route) ? route : "a01");
+  const target = shell || displayRoute(wanted, index, {
     narrow: narrow.matches, compact: compact.matches, dark,
   });
   const view = index.get(target) || index.get(wanted);
+  const shown = shell ? base : view.route;
   const currentRole = live?.accountRole() || roleFor(view.route);
   if (currentRole) {
     role = currentRole;
     savePreference("role", role);
   }
-  const title = reset ? "Reset password" : cleanName(view.name);
+  const title = reset ? "Reset password" : shell ? (base === "d10" ? "Notifications" : "Settings") : cleanName(view.name);
   frame = view;
   document.title = title + " | PayShare";
   screen.setAttribute("aria-busy", "true");
   if (live) screen.inert = true;
-  screen.dataset.route = reset ? route : view.route;
+  screen.dataset.route = reset ? route : shown;
   screen.className = view.width <= 420 ? "phone" : "desktop";
   screen.classList.toggle("appearance-dark", view.route.endsWith("-dark") || dark);
   screen.classList.toggle("theme-adapted", dark && !view.route.endsWith("-dark"));
@@ -690,7 +708,7 @@ async function render() {
     const response = await fetch(new URL("views/" + view.route + ".html", import.meta.url));
     if (!response.ok) throw new Error("This demo screen is temporarily unavailable.");
     const html = await response.text();
-    await live?.prepare(reset ? route : view.route, () => version === renderVersion);
+    await live?.prepare(reset ? route : shown, () => version === renderVersion);
     if (version !== renderVersion) return;
     const template = document.createElement("template");
     template.innerHTML = html;
@@ -712,13 +730,14 @@ async function render() {
       nav.classList.add("mobile-tab-bar");
       nav.setAttribute("role", "navigation");
       nav.setAttribute("aria-label", roles[viewRole]?.label + " navigation");
-      markPhoneTab(nav, viewRole, view.route);
+      markPhoneTab(nav, viewRole, shown);
       screen.append(nav);
     }
     screen.querySelectorAll("a[href]").forEach(node => {
       if (!node.getAttribute("href").startsWith("#/")) node.removeAttribute("href");
     });
     wireScreen(screen.dataset.route);
+    if (shell) markSidebar(base);
     live?.install(screen.dataset.route);
     if (/^(a\d{2}|reset-password)$/.test(screen.dataset.route)) applyAuthPlaceholders(screen);
     if (!live && !hideChrome && screen.classList.contains("sample-payment")) {
@@ -738,6 +757,21 @@ async function render() {
       screen.inert = false;
       screen.removeAttribute("aria-busy");
     }
+  }
+}
+// A borrowed frame highlights the section being shown instead of its own.
+function markSidebar(route) {
+  const items = [...screen.querySelectorAll('[data-layer="Sidebar item"]')];
+  const wanted = route === "d10" ? "" : "Settings";
+  const from = items.find(item => item.classList.contains("f123"));
+  const to = items.find(item => item.querySelector("p")?.textContent.trim() === wanted);
+  if (from === to) return;
+  for (const [item, active] of [[from, false], [to, true]]) {
+    if (!item) continue;
+    item.classList.toggle("f123", active);
+    item.querySelector(":scope > p")?.classList.toggle("f60", active);
+    item.querySelector(":scope > p")?.classList.toggle("f112", !active);
+    if (active) item.setAttribute("aria-current", "page");
   }
 }
 function setCatalogItems() {
@@ -770,13 +804,11 @@ function showCatalog(scope = "", phrase = search.value) {
   search.focus();
 }
 function switchTheme(next = !dark) {
-  dark = next;
-  savePreference("theme", dark ? "dark" : "light");
-  const current = location.hash.match(/^#\/([\w-]+)(?:\?.*)?$/)?.[1];
-  if (current?.endsWith("-dark")) goto(current.replace(/-dark$/, ""));
-  else render();
+  setAppearance(next ? "dark" : "light");
+  live?.saveAppearance(appearance);
   announce(dark ? "Dark theme" : "Light theme");
 }
+systemDark.addEventListener("change", () => { if (appearance === "system") setAppearance("system"); });
 for (const { label, home } of Object.values(roles)) {
   const link = element("a", label);
   link.href = href(home);
@@ -823,5 +855,5 @@ if (hideChrome) {
   document.querySelector("#demo").hidden = true;
   document.body.classList.add("compare-view");
 }
-document.documentElement.dataset.demoTextSize = readPreference("text-size", "");
+if (!live) document.documentElement.dataset.demoTextSize = readPreference("text-size", "");
 render();

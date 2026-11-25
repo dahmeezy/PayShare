@@ -68,6 +68,10 @@ services:
         value: 4022
       - key: API_BASE_URL
         sync: false # set to your https://<service>.onrender.com URL after the first deploy
+      - key: RESEND_API_KEY
+        sync: false # required for sign-up verification emails
+      - key: EMAIL_FROM
+        sync: false
       - key: STELLAR_RECIPIENT
         sync: false
       - key: STELLAR_SECRET_KEY

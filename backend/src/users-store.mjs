@@ -35,7 +35,8 @@ const validateUser = (user) => {
   if (!user || typeof user.name !== "string" || user.name.trim().length === 0)
     errors.push("Valid name required");
   if (!user || typeof user.email !== "string") errors.push("Valid email required");
-  if (!user || !["contractor", "worker", "client"].includes(user.role))
+  // The role stays empty until the person chooses it during onboarding.
+  if (!user || (user.role !== null && !["contractor", "worker", "client"].includes(user.role)))
     errors.push('Role must be one of: contractor, worker, client');
   if (user.stellar_address && !StrKey.isValidEd25519PublicKey(user.stellar_address))
     errors.push("Stellar address must be a valid public key (G...)");
@@ -63,18 +64,22 @@ export function writeUsers(users) {
   }
 }
 
-export function createUser({ name, email, role, stellarAddress, password }) {
+export function createUser({ firstName, lastName, email, role = null, stellarAddress, password, ...account }) {
   const users = readUsers();
 
   // Check uniqueness
   const lowerEmail = email.toLowerCase().trim();
-  if (users[lowerEmail]) throw new Error("Email already registered");
+  // A sign-up that never proved ownership of the address can be started again.
+  const pending = users[lowerEmail]?.email_verified_at === null;
+  if (users[lowerEmail] && !pending) throw new Error("Email already registered");
 
   const passwordHash = hashPassword(password || "");
 
   const user = {
     id: `user_${randomUUID()}`,
-    name: name.trim(),
+    first_name: firstName.trim(),
+    last_name: lastName.trim(),
+    name: `${firstName.trim()} ${lastName.trim()}`,
     email: lowerEmail,
     role,
     stellar_address: stellarAddress || null,
@@ -83,6 +88,14 @@ export function createUser({ name, email, role, stellarAddress, password }) {
     password_salt: passwordHash.salt,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    // null means "not done yet". Accounts created before these fields existed lack them
+    // entirely and keep working without being asked to verify or onboard again.
+    email_verified_at: null,
+    onboarded_at: null,
+    tour_seen_at: null,
+    ...account,
+    // Keeps the resend cooldown when a pending sign-up is restarted.
+    ...(pending && users[lowerEmail].verification && { verification: users[lowerEmail].verification }),
   };
 
   const validation = validateUser(user);
