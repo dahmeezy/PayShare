@@ -7,10 +7,12 @@ import test from "node:test";
 import { Keypair, StrKey, nativeToScVal, xdr } from "@stellar/stellar-sdk";
 import express from "express";
 import request from "supertest";
+import { testMailer } from "./helpers.mjs";
 
 const password = "isolated-test-password";
 const prefix = "/api/workspace";
 const PIN = "246810";
+const mailer = testMailer();
 
 async function setup(t) {
   const dir = await mkdtemp(join(tmpdir(), "payshare-workspace-"));
@@ -22,14 +24,18 @@ async function setup(t) {
   t.after(() => rm(dir, { recursive: true, force: true }));
   const store = await import("../src/workspace-store.mjs");
   await store.initializeWorkspace();
-  return { ...files, createApp: (await import("../src/server.mjs")).createApp };
+  const { createApp } = await import("../src/server.mjs");
+  return { ...files, createApp: (settings, payment) => createApp(settings, payment, mailer) };
 }
 
 async function account(app, who, role, stellarAddress) {
   const agent = request.agent(app);
   const email = who + "@example.test";
-  const { body, headers } = await agent.post("/api/register").send({ name: who, email, role, password, stellarAddress }).expect(201);
+  const { headers } = await agent.post("/api/register")
+    .send({ firstName: who, lastName: "Tester", email, role, password, stellarAddress, acceptTerms: true }).expect(201);
   assert.match(headers["set-cookie"][0], /HttpOnly.*SameSite=Strict/i);
+  await agent.get(prefix + "/projects").expect(403);
+  const { body } = await agent.post("/api/verify").send({ code: mailer.code(email.toLowerCase()) }).expect(200);
   return { agent, email, user: body };
 }
 
@@ -133,9 +139,7 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     const recovery = await request(app).post("/api/forgot").send({ email: worker.email }).expect(200);
     assert.equal(recovery.body.deliveryAvailable, false);
     assert.equal(recovery.body.code, undefined);
-    const verification = await request(app).post("/api/verify").send({ code: "123456" }).expect(200);
-    assert.equal(verification.body.verified, false);
-    assert.equal(verification.headers["set-cookie"], undefined);
+    await request(app).post("/api/verify").send({ code: "123456" }).expect(401);
 
     const raw = await readFile(fixture.workspace, "utf8");
     const damaged = JSON.parse(raw);
@@ -157,10 +161,15 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
       role: "contractor", email,
     }).expect(200);
     const invited = request.agent(app);
-    const registration = { name: "Invited contractor", password, role: "worker", invitationToken: token };
+    const registration = { firstName: "Invited", lastName: "Contractor", password, role: "worker", invitationToken: token, acceptTerms: true };
     await invited.post("/api/register").send({ ...registration, email: "wrong@example.test" }).expect(403);
     const { body } = await invited.post("/api/register").send({ ...registration, email }).expect(201);
     assert.equal(body.role, "contractor");
+    assert.equal(body.invited, true);
+    await invited.put("/api/onboarding/role").send({ role: "worker" }).expect(403);
+    await invited.post(prefix + "/invitations/respond").send({ token, decision: "accept" }).expect(403);
+    await invited.post("/api/verify").send({ code: mailer.code(email) }).expect(200);
+    await invited.put("/api/onboarding/role").send({ role: "worker" }).expect(409);
     await invited.get("/api/session").expect(200).expect(response => assert.equal(response.body.role, "contractor"));
     await invited.post(prefix + "/invitations/respond").send({ token, decision: "accept" }).expect(200);
     await request(app).post("/api/register").send({ ...registration, email }).expect(404);
@@ -245,8 +254,8 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     const client = await login("client");
     const contractor = await login("contractor");
     const worker = await login("worker");
-    await client.agent.put("/api/profile").send({ name: "Client", stellarAddress: clientWallet }).expect(200);
-    await worker.agent.put("/api/profile").send({ name: "Worker", stellarAddress: recipient }).expect(200);
+    await client.agent.put("/api/profile").send({ firstName: "Client", lastName: "Tester", stellarAddress: clientWallet }).expect(200);
+    await worker.agent.put("/api/profile").send({ firstName: "Worker", lastName: "Tester", stellarAddress: recipient }).expect(200);
     const { body: project } = await client.agent.post(prefix + "/projects").send({ name: "Testnet", budget: 10000, mode: "testnet" }).expect(201);
     const base = prefix + "/projects/" + project.id;
     const group = { client, contractor, worker, base };
@@ -352,5 +361,26 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     await approve(group, next);
     for (let i = 0; i < 5; i++) await contractor.agent.post(next + "/payout").send({ pin: "111111" }).expect(403);
     await contractor.agent.post(next + "/payout").send({ pin: PIN }).expect(429);
+  });
+  await t.test("notifications follow each role and can be marked as read", async () => {
+    const group = await team(app, "preview", {}, "Notice");
+    const { client, contractor, worker, base } = group;
+    await client.agent.post(base + "/funding").send({ amount: 8000 }).expect(200);
+    const task = await assign(group, 1200, "Paint the arch", worker, true);
+    await approve(group, task);
+    const feed = async who => (await who.agent.get(prefix + "/notifications").expect(200)).body;
+    const titles = async who => (await feed(who)).items.map(item => item.title);
+    assert.ok((await titles(worker)).includes("New task assigned to you"));
+    assert.ok((await titles(contractor)).some(title => title.includes("submitted work")));
+    assert.ok((await titles(client)).includes("A deliverable needs your confirmation"));
+    assert.ok(!(await titles(worker)).some(title => /funding/i.test(title)));
+    assert.ok((await feed(worker)).unread > 0);
+    await worker.agent.post(prefix + "/notifications/read").expect(200);
+    assert.equal((await feed(worker)).unread, 0);
+    await worker.agent.put("/api/profile").send({ firstName: "Renamed", lastName: "Worker" }).expect(200);
+    const { body: projects } = await contractor.agent.get(prefix + "/projects").expect(200);
+    const saved = projects.find(project => base.endsWith(project.id));
+    assert.equal(saved.tasks[0].workerName, "Renamed Worker");
+    await contractor.agent.put("/api/onboarding/role").send({ role: "worker" }).expect(409);
   });
 });

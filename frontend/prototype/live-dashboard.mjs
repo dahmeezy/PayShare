@@ -7,7 +7,9 @@ export function bindIdentity(screen, user, { project, review, confirmations, tas
   const top = layer(screen, "Top bar");
   const mobile = layer(screen, "App bar");
   const name = user.name;
-  match(account, [[/^[A-Z]{2}$/u, initials(name)], [/^(Tola Adeyemi|Amara Okafor|David James)$/, name]]);
+  const roleName = { client: "Client", contractor: "Contractor", worker: "Worker" }[user.role];
+  match(account, [[/^[A-Z]{2}$/u, initials(name)], [/^(Tola Adeyemi|Amara Okafor|David James)$/, name],
+    [/^(Worker|Contractor|Client)( ·.*)?$/, roleName]]);
   match(top, [[/^(TA|AO|DJ)$/, initials(name)], ["Stellar Testnet", project?.mode === "testnet" ? "Stellar Testnet" : "Simulation"]]);
   match(mobile, [[/^(TA|AO|DJ)$/, initials(name)], [/^(Tola Adeyemi|Amara Okafor|David James)$/, name],
     ["Lagos Wedding Decoration", project?.name || "No project"]]);

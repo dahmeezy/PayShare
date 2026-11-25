@@ -13,6 +13,7 @@ import { createAuthRouter } from "./auth-router.mjs";
 import { createWorkspaceRouter } from "./workspace-api.mjs";
 import { createSettlement } from "./workspace-settlement.mjs";
 import { createAiStatus } from "./ai-status.mjs";
+import { createMailer } from "./email.mjs";
 
 const PAID_ROUTES = {
   "GET /sun-forecast":    { price: 0.001, description: "Today's solar conditions: sun hours, cloud cover, rain chance" },
@@ -74,7 +75,7 @@ function paidRequests({ usdc, network, facilitator, recipient }) {
   };
 }
 
-export function createApp(settings = config, payment = {}) {
+export function createApp(settings = config, payment = {}, mailer = createMailer()) {
   const { usdc, network } = settings;
   const app = express();
 
@@ -160,7 +161,7 @@ export function createApp(settings = config, payment = {}) {
     next();
   });
   app.use("/api/workspace", createWorkspaceRouter(payment.settlement || createSettlement(settings), payment.verifyFunding, createAiStatus(settings)));
-  app.use("/api", createAuthRouter());
+  app.use("/api", createAuthRouter(mailer));
 
   app.use("/api", moneyRouter);
 

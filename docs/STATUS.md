@@ -1,5 +1,7 @@
 # PayShare MVP status
 
+> **Update, November 2026:** email verification (Resend), first and last names, terms agreement, persisted onboarding, role-specific product tour, settings for all roles, in-app notifications and connected task, payment and receipt screens were added after the audit below. Still unavailable: password recovery, notification emails, WhatsApp, allocation changes, problem reports, voice notes, attachments, incomplete-task resolution and budget approval. See the README for the current list.
+
 Last audited against `release/mvp-final` (branched from `main` at f726056). Statuses are **Done / Partial / Missing / Broken**.
 Evidence is a file, endpoint or test. Items marked "not visually verified" were judged from code, not a screenshot.
 

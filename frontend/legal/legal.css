@@ -1,0 +1,17 @@
+@font-face { font-family: Inter; src: url("../prototype/fonts/inter-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+:root { color-scheme: light dark; --bg: #f5f7fa; --surface: #fff; --text: #142b45; --body: #475569; --line: #e2e8f0; --brand: #0f7f6c; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0b1622; --surface: #12223a; --text: #f2f5f9; --body: #b8c3d1; --line: #24384f; --brand: #5cc9b4; } }
+* { box-sizing: border-box; }
+body { margin: 0; font: 400 16px/1.6 Inter, system-ui, sans-serif; background: var(--bg); color: var(--body); }
+header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 16px 24px; background: #142b45; }
+header a { color: #fff; text-decoration: none; font-size: 14px; font-weight: 600; }
+header nav { display: flex; gap: 16px; }
+header .logo { font-size: 18px; font-weight: 800; }
+main { max-width: 760px; margin: 32px auto; padding: 32px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+h1, h2 { color: var(--text); line-height: 1.25; }
+h1 { font-size: 32px; margin: 16px 0 8px; }
+h2 { font-size: 18px; margin: 28px 0 8px; }
+a { color: var(--brand); }
+a:focus-visible { outline: 2px solid #159a83; outline-offset: 3px; }
+.draft { margin: 0; padding: 12px 16px; border-left: 3px solid #d99a1e; border-radius: 8px; background: #d99a1e22; color: var(--text); }
+@media (max-width: 767px) { main { margin: 0; padding: 24px 16px; border: 0; border-radius: 0; } h1 { font-size: 26px; } }

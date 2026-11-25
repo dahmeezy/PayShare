@@ -8,8 +8,9 @@ import { endpoint } from "./money-api.mjs";
 import { agentEntry, checkBudget, payoutChecks, payoutTerms } from "./payout-agent.mjs";
 import { checkPin, hasPin, setPin } from "./payout-pin.mjs";
 import { projectError } from "./project-store.mjs";
+import { notificationsFor } from "./notifications.mjs";
 import { requireSession } from "./session.mjs";
-import { getUserById } from "./users-store.mjs";
+import { getUserById, readUsers, writeUsers } from "./users-store.mjs";
 import { funded, projectBudget, readWorkspace, updateWorkspace } from "./workspace-store.mjs";
 
 const now = () => new Date().toISOString();
@@ -57,7 +58,18 @@ function taskFor(project, id) {
   if (!task) throw projectError("Task not found", 404);
   return task;
 }
-function publicProject(project, user) {
+const currentState = state => ({ ...state, projects: state.projects.map(currentNames) });
+// Projects keep the name a person joined with; show the one on their account now.
+function currentNames(project) {
+  const names = new Map(Object.values(readUsers()).map(user => [user.id, user.name]));
+  return {
+    ...project,
+    members: project.members.map(member => ({ ...member, name: names.get(member.id) ?? member.name })),
+    tasks: project.tasks.map(task => ({ ...task, workerName: names.get(task.workerId) ?? task.workerName })),
+  };
+}
+function publicProject(saved, user) {
+  const project = currentNames(saved);
   const role = membership(project, user.id);
   const tasks = project.tasks.filter(task => role !== "worker" || task.workerId === user.id).map(task => {
     const { status, tx, paidAt, error, candidateTx } = task.payout;
@@ -65,7 +77,7 @@ function publicProject(project, user) {
       id: task.id, title: task.title, description: task.description, workerId: task.workerId,
       workerName: task.workerName, amount: task.amount, status: task.status, submission: task.submission,
       criteria: task.criteria, deadline: task.deadline, deliverables: task.deliverables, reassignable: task.reassignable,
-      acceptedAt: task.acceptedAt ?? null, declinedAt: task.declinedAt, submissions: task.submissions ?? (task.submission ? [task.submission] : []),
+      acceptedAt: task.acceptedAt ?? null, declinedAt: task.declinedAt, createdAt: task.createdAt, submissions: task.submissions ?? (task.submission ? [task.submission] : []),
       clientApprovalRequired: task.clientApprovalRequired, clientApprovedAt: task.clientApprovedAt,
       review: task.review, payout: {
         status, paidAt, error, ...(role === "contractor" && { canReconcile: !!candidateTx }),
@@ -73,7 +85,7 @@ function publicProject(project, user) {
       },
     };
   });
-  const summary = { id: project.id, name: project.name, mode: project.mode, role, tasks };
+  const summary = { id: project.id, name: project.name, mode: project.mode, createdAt: project.createdAt, role, tasks };
   if (role === "worker") return summary;
   return {
     ...summary, budget: project.budget, compensation: project.compensation, expenses: project.expenses,
@@ -93,6 +105,21 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
     res.json({ name: project.name, role: invitation.role });
   }));
   router.use(requireSession);
+  router.use((req, res, next) => req.user.role ? next() : res.status(403).json({ error: "Choose your role first" }));
+
+  router.get("/notifications", endpoint(async (req, res) => {
+    if (!req.user.preferences.notifications.inApp) return res.json({ enabled: false, unread: 0, items: [] });
+    const readAt = readUsers()[req.user.email].notifications_read_at || "";
+    const items = notificationsFor(currentState(await readWorkspace()), req.user.id)
+      .map(item => ({ ...item, unread: item.at > readAt }));
+    res.json({ enabled: true, unread: items.filter(item => item.unread).length, items });
+  }));
+  router.post("/notifications/read", endpoint((req, res) => {
+    const users = readUsers();
+    users[req.user.email].notifications_read_at = new Date().toISOString();
+    writeUsers(users);
+    res.json({ unread: 0 });
+  }));
 
   router.get("/capabilities", (req, res) => res.json({
     aiSummary: Boolean(aiStatus), testnet: Boolean(settlement.payer), payoutPinSet: hasPin(req.user.id),
@@ -224,7 +251,7 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
       criteria: criteria ? text(criteria, "acceptance criteria", 1000) : "",
       deadline: deadline ? date(deadline) : null,
       deliverables: deliverableList(deliverables),
-      reassignable, acceptedAt: null,
+      reassignable, acceptedAt: null, createdAt: now(),
       status: "assigned", clientApprovalRequired, payout: { status: "pending" },
     };
     project.tasks.push(task);

@@ -196,7 +196,9 @@ function budgetSummary(content, project, data) {
     bar(layer(breakdown, "Bar") || layer(breakdown, "Stack"), nums);
   }
   const expenses = content.querySelector('[data-layer="Expenses"]:has(> [data-layer="Card head"])');
-  if (expenses) put(paragraphs(layer(expenses, "Card head")).at(-1), money(t.expenses));
+  const total = paragraphs(layer(expenses, "Card head"));
+  // Some frames show a total beside the title; others have only the title.
+  if (total.length > 1 && /USDC/.test(total.at(-1).textContent)) put(total.at(-1), money(t.expenses));
   replaceEntries(expenses, '[data-layer="Exp"], [data-layer="Expense"], [data-layer="Expense row"]', project?.expenses || [],
     (row, expense) => slots(row, [expense.description, "Approved", money(expense.amount)]), "No approved expenses.");
   const compensation = layer(content, "Compensation");
@@ -236,7 +238,7 @@ export function bindBudget(content, route, data) {
   }
   if (["d04", "md03"].includes(route)) {
     const budgets = [t.expenses || 0, project?.compensation || 0, t.worker_pool || 0];
-    const breakdown = layer(content, "Budget breakdown");
+    const breakdown = layer(content, "Budget breakdown") || layer(content, "Breakdown");
     const left = layer(breakdown, "c1");
     const right = layer(breakdown, "c2");
     const pending = sum(selectedTasks.filter(task => !["paid","simulated"].includes(task.payout.status)), "amount");
@@ -270,13 +272,13 @@ export function bindBudget(content, route, data) {
     const progress = layer(payments, "p");
     slots(progress, ["Paid out of " + money(project?.budget), money(t.paid)]);
     stats(content, [[money(project?.budget), "Agreed budget"], [money(project?.funded), state(project)], [money(t.paid), "Verified payments"],
-      [money(Math.max(0, (project?.funded || 0) - (t.paid || 0))), "Project balance"]]);
+      [money(pending), "Awaiting payout"], [money(Math.max(0, (project?.funded || 0) - (t.paid || 0))), "Project balance"]]);
     match(content, [[/^[^ ]*14 Nov|^Agreed 12 Nov|^(?:Fully )?Funded 14 Nov/, state(project)],
       [/^Lagos Wedding Decoration/, project?.name || "No project"]]);
   }
 }
 
-export function bindApprovals(content, route, data) {
+export function bindApprovals(content, route, data, filter) {
   const { project, ready, review, confirmations, selectedTasks } = data;
   if (route === "c23") {
     const pending = layer(content, "Pending");
@@ -303,16 +305,25 @@ export function bindApprovals(content, route, data) {
     chips(content, [ready.length, selectedTasks.length - ready.length, selectedTasks.filter(t => paid(t)).length,
       selectedTasks.filter(t => t.payout.status === "failed").length]);
     const card = layer(content, "Ready");
-    const task = ready[0];
+    const chosen = clean(filter || "").toLowerCase().match(/^(waiting|paid|failed)/)?.[1];
+    const task = chosen ? null : ready[0];
     if (task) {
       slots(card, [initials(task.workerName), task.workerName, task.title, money(task.amount), "Allocation recorded",
         "Contractor approved", task.clientApprovalRequired ? "Client confirmed" : "Client confirmation not required", "Funds available", "No payout recorded"]);
       rowLink(card, "c24", project, task);
-    } else if (card) { card.hidden = true; empty(content, "No payouts ready."); }
-    replaceEntries(layer(content, "Waiting"), recs, selectedTasks.filter(t => !ready.includes(t)), (row, item) => {
+    } else if (card) { card.hidden = true; if (!chosen) empty(content, "No payouts ready."); }
+    const listed = {
+      waiting: t => !ready.includes(t) && !["paid", "simulated", "failed"].includes(t.payout.status),
+      paid: t => ["paid", "simulated"].includes(t.payout.status),
+      failed: t => t.payout.status === "failed",
+    }[chosen] || (t => !ready.includes(t));
+    if (chosen) {
+      match(content, [["Waiting", { waiting: "Waiting", paid: "Paid", failed: "Failed" }[chosen]]]);
+    }
+    replaceEntries(layer(content, "Waiting"), recs, selectedTasks.filter(listed), (row, item) => {
       slots(row, [initials(item.workerName), item.workerName + " · " + money(item.amount), item.title, taskLabel(item)]);
-      rowLink(row, item.status === "submitted" ? "c21" : "c20", project, item);
-    }, "No waiting tasks.");
+      rowLink(row, item.payout.status !== "pending" ? "c30" : item.status === "submitted" ? "c21" : "c20", project, item);
+    }, chosen === "paid" ? "No payments recorded yet." : chosen === "failed" ? "No failed payouts." : "No waiting tasks.");
   }
 }
 
@@ -342,8 +353,6 @@ export function bindPayments(content, route, data, filter) {
       slots(layer(record, "AmountCol"), [money(item.amount), item.status]);
       if (item.tx) rowLink(record, "w11", item.project, item.task);
     }, "No payments recorded yet.");
-    const btn = action(content, /export|download/i);
-    if (btn) btn.hidden = true;
   } else {
     stats(content, [[money(project?.funded), state(project)], [money(sum(relevant.filter(t => paid(t)), "amount")), "Verified payouts"],
       [money(pending), "Awaiting payout"], [relevant.filter(t => t.payout.status === "failed").length, "Unconfirmed settlements"]]);

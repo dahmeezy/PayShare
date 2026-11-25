@@ -1,8 +1,14 @@
 import { api } from "./api.mjs";
+import { rendersAuth, renderAuth } from "./auth-screens.mjs";
+import { renderNotifications } from "./notifications-screen.mjs";
+import { renderSettings } from "./settings.mjs";
+import { rendersTask, renderTask } from "./task-screens.mjs";
+import { closeTour, startTour, tourOpen } from "./tour.mjs";
 import { openDialog } from "./demo-interactions.mjs";
 import { bindDashboard, bindIdentity } from "./live-dashboard.mjs";
 import { bindApprovals, bindBudget, bindPayments, bindProjects, bindTaskList } from "./live-records.mjs";
-import { bindTaskDetail, configureForm, configureProfile, fieldValue, input, validateFields } from "./live-details.mjs";
+import { configureForm, fieldValue, validateFields } from "./live-details.mjs";
+import { tidy } from "./live-cleanup.mjs";
 import { action, clean, context, empty, initials, labelAction, layer, layers, match, money, paragraphs, payoutStatus,
   put, replaceEntries, rowLink, slots, stats, taskStatus } from "./live-elements.mjs";
 
@@ -10,18 +16,20 @@ export const liveMode = new URLSearchParams(location.search).get("app") === "1";
 const workspace = "/workspace";
 const baseRoute = route => route.replace(/-(dark|360)$/, "");
 const isDashboard = route => /^(m?[cwd])01$/.test(route);
-const forms = new Set(["c03", "c04", "c05", "c09", "c14", "c16", "c19", "mc07", "w05", "mw06", "c21", "mc08", "d06", "md05", "d09", "c24", "mc09"]);
+const forms = new Set(["c03", "c04", "c05", "c09", "c14", "c16", "d09", "mc09"]);
 const routeGroups = {
   projects: new Set(["c02", "d02", "c06", "mc02", "d03", "md02", "c07"]),
   tasks: new Set(["c18", "w02", "mw02"]),
   budgets: new Set(["c10", "mc03", "mc04", "d04", "md03", "d05", "md04"]),
   approvals: new Set(["c23", "mc09"]),
   payments: new Set(["c29", "d08", "w12", "mw10"]),
-  taskDetails: new Set(["c20", "w03", "w04", "mw03", "mw05", "w06", "w07", "c11"]),
 };
 
 const workerAllocation = new Set(["w08", "mw07"]);
-const notifications = new Set(["c32", "mc10", "md07", "w13"]);
+const notifications = new Set(["c32", "mc10", "md07", "w13", "d10"]);
+const settingsRoutes = { contractor: "c33", worker: "w33", client: "d33" };
+const isSettings = route => Object.values(settingsRoutes).includes(route);
+const publicRoutes = ["a01", "a02", "a03", "a04"];
 const shortcutRoutes = {
   "c06": { overview:"c06", tasks:"c18", budget:"c10", members:"c07", activity:"c31", settings:"c09" },
   "d03": { overview:"d03", finances:"d04", allocations:"d05", deliverables:"d06" },
@@ -30,11 +38,10 @@ const shortcutRoutes = {
 };
 const cents = value => Math.round(Number(value) * 100);
 
-export function liveApplication({ screen, render, roleFor, roles, announce }) {
+export function liveApplication({ screen, render, roleFor, roles, announce, setAppearance, appearance }) {
   let user = null;
   let draft = {};
   let started = false;
-  let onboarding = false;
   let inFlight = false;
   let capabilities = {};
   let startError = "";
@@ -61,15 +68,49 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
     else location.hash = hash;
   }
   function home() { go(roles[user.role].home); }
-  function logout() {
-    return api("/logout", "POST").then(() => {
+  function logout(next = "a03") {
+    return api("/logout", "POST", {}).then(() => {
+      closeTour();
       user = null;
-      onboarding = false;
       draft = {};
+      capabilities = {};
       data = context([]);
-      go("a03");
+      go(next);
     });
   }
+  // Every response that describes the account passes through here.
+  function adopt(latest) {
+    user = latest;
+    const { appearance: theme, textSize } = latest.preferences;
+    if (theme && theme !== appearance()) setAppearance(theme, { redraw: false });
+    document.documentElement.dataset.demoTextSize = textSize === "default" ? "" : textSize;
+    return user;
+  }
+  const canUse = () => user && !user.verificationRequired && user.role;
+  async function loadCapabilities() {
+    capabilities = canUse() ? await api(workspace + "/capabilities").catch(() => ({})) : {};
+  }
+  // Where an account belongs next: verification, role, invitation, setup, then its dashboard.
+  function nextStep() {
+    if (user.verificationRequired) return "a05";
+    if (!user.role) return "a07";
+    if (invitationToken) return "a06";
+    return user.onboarded ? roles[user.role].home : "a08";
+  }
+  async function signedIn(latest) {
+    adopt(latest);
+    await loadCapabilities();
+    go(nextStep());
+  }
+  async function finished(latest) {
+    adopt(latest);
+    await loadCapabilities();
+    home();
+  }
+  function beginTour() {
+    startTour({ screen, role: user.role, onEnd: async status => adopt(await api("/onboarding/tour", "POST", { status })) });
+  }
+  function openSettings(tab) { go(settingsRoutes[user.role], data.project, undefined, tab ? { tab } : {}); }
   function saveInvitation(token) {
     invitationToken = token;
     if (token) sessionStorage.setItem("payshare-invitation", token);
@@ -121,6 +162,7 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
       if (!form.isConnected || token !== invitationToken) return;
       put(caption[2], result.name);
       put(caption[3], "Join as " + result.role);
+      match(form, [[/^Join as a worker$|^Project invitation$/, "Join " + result.name]]);
       if (!user) {
         for (const [label, route] of [["Sign in to respond", "a03"], ["Create an account to respond", "a02"]]) {
           const link = document.createElement("a");
@@ -151,10 +193,9 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
     await api(workspace + "/invitations/respond", "POST", { token: invitationToken, decision });
     ignoredToken = invitationToken;
     saveInvitation("");
-    if (decision === "accept") {
-      onboarding = true;
-      go("a08");
-    } else home();
+    if (decision === "accept") await loadCapabilities();
+    if (user.onboarded) home();
+    else go("a08");
     return "Invitation " + (decision === "accept" ? "accepted." : "declined.");
   }
   function offerInvite(result) {
@@ -181,7 +222,7 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
     if (element.dataset.liveExternal) {
       const url = new URL(element.dataset.liveExternal);
       if (url.origin === "https://stellar.expert") window.open(url, "_blank", "noopener,noreferrer");
-    } else if (element.dataset.liveRoute === "profile") go("a08");
+    } else if (element.dataset.liveRoute === "profile") openSettings("profile");
     else go(element.dataset.liveRoute, project, task, element.dataset.liveCreate ? { create:"1" } : {});
   }
   function recordClick(event) {
@@ -257,9 +298,6 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
     if (["d03", "md02", "d04", "md03"].includes(route) && confirmations[0]) {
       rowLink(action(content, /confirm|review/i), "d06", project, confirmations[0]);
     }
-    if (["c20", "w03", "w04", "mw03", "mw05", "c11"].includes(route) && data.task) {
-      rowLink(action(content, /review submission/i), "c21", project, data.task);
-    }
     const active = shortcutRoutes[route];
     if (active) {
       for (const tab of paragraphs(layer(content, "Tabs") || layer(content, "Chips"))) {
@@ -330,76 +368,24 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
     }
   }
 
-  function panelUnsupported(content, message) {
-    if (!content) return;
-    const pageHeader = layer(content, "Page header");
-    for (const child of content.children) if (child !== pageHeader) child.hidden = true;
-    match(pageHeader, [[/Lagos Wedding Decoration/, data.project?.name || "Projects"],
-      [/Amara Okafor|Sew wedding outfits/, data.task?.title || ""]]);
-    empty(content, message);
-  }
-
   function bindOther(route, content) {
-    if (route === "c33") {
-      const profile = layer(content, "Profile");
-      match(profile, [["TA", initials(user.name)], ["Tola Adeyemi", user.name], [/^Contractor ·/, "Contractor"], ["tola@studioadeyemi.ng", user.email],
-        ["WhatsApp", "Payout wallet"], [/^\+234/, user.stellar_address || "Not configured"], ["Verified", "Email verification"], ["Email and phone", "Unavailable"]]);
-      rowLink(profile, "profile");
-      for (const name of ["Security", "Language"]) {
-        const item = layer(content, name);
-        if (item) {
-          [...item.children].slice(1).forEach(child => child.hidden = true);
-          empty(item, name === "Security" ? "Payment actions use your signed-in account. Two-step verification is unavailable." : "Additional language and delivery settings are unavailable.");
-        }
-      }
-      const tab = paragraphs(layer(content, "Tabs")).find(p => clean(p.textContent) === "Profile");
-      if (tab) rowLink(tab.parentElement, "profile");
-      const save = action(content, /save changes/i);
-      if (save) save.hidden = true;
-      return;
-    }
-    if (route === "w11") {
-      const txn = data.task?.payout;
-      if (!txn?.transaction) return panelUnsupported(content, "This payout has no verified Stellar receipt.");
-      match(content, [[/PS-00142/, "Payment receipt"], [/150(?:\.00)? USDC/, money(data.task.amount)],
-        [/Sew wedding outfits/, data.task.title], ["Lagos Wedding Decoration", data.project?.name],
-        [/^19 Nov.*/, txn.paidAt ? new Date(txn.paidAt).toLocaleString() : "—"],
-        [/3c9a|7a3f|7e3a|^G[A-Z0-9…]{3,}/, txn.transaction],
-        [/^150\.00$/, String(data.task.amount / 100)]]);
-      const view = action(content, /stellar expert|explorer/i);
-      if (view) view.dataset.liveExternal = txn.explorerUrl;
-      else {
-        const link = document.createElement("a");
-        link.href = txn.explorerUrl;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.textContent = "View verified transaction";
-        content.append(link);
-      }
-      return;
-    }
-    if (route === "c31" || route === "c08") {
-      stats(content, [[data.tasks.filter(t => t.payout.status === "paid").length, "Verified payments"], [data.pending / 100 + " USDC", "Awaiting payout"],
-        [data.tasks.filter(t => t.payout.status === "failed").length, "Unconfirmed"], ["—", "Timing not tracked"]]);
-      const area = layer(content, "Log") || layer(content, "Timeline") || content;
+    if (route === "c31") {
+      stats(content, [[data.tasks.filter(t => t.payout.status === "paid").length, "Verified payments"], [money(data.pending), "Awaiting payout"],
+        [data.tasks.filter(t => t.payout.status === "failed").length, "Unconfirmed"],
+        [(data.agentLog || []).filter(entry => entry.outcome === "blocked").length, "Attempts the agent stopped"]]);
+      const area = layer(content, "Log") || content;
       for (const item of [...area.children].slice(1)) item.hidden = true;
-      for (const task of data.selectedTasks) empty(area, task.title + " · " + payoutStatus(task.payout));
-      const rail = layer(content, "Rail");
-      if (rail) rail.hidden = true;
-      if (!data.selectedTasks.length) empty(area, "No project activity.");
-      if (route === "c31" && user.role !== "worker") {
-        const log = data.agentLog || [];
-        empty(area, log.length ? "Payout agent decisions, newest first" : "The payout agent has not made any decisions yet.");
-        for (const entry of log) {
-          empty(area, new Date(entry.at).toLocaleString() + " · " + entry.message);
-          for (const check of entry.checks) empty(area, "    " + (check.ok ? "✓ " : "✗ ") + check.label);
-        }
-        const unpaid = data.selectedTasks.filter(task => !["paid", "simulated"].includes(task.payout.status));
-        const reason = task => task.acceptedAt === null ? "Task not accepted" : task.status === "assigned" ? "Work not submitted" :
-          task.status === "submitted" ? "Awaiting your review" : taskStatus(task);
-        replaceEntries(layer(content, "Now"), '[data-layer="r"]', unpaid, (row, task) =>
-          slots(row, [initials(task.workerName), task.workerName + " · " + money(task.amount), reason(task), "Waiting"]), "No payments are waiting.");
+      const log = data.agentLog || [];
+      empty(area, log.length ? "Payout agent decisions, newest first" : "The payout agent has not made any decisions yet.");
+      for (const entry of log) {
+        empty(area, new Date(entry.at).toLocaleString() + " · " + entry.message);
+        for (const check of entry.checks) empty(area, "    " + (check.ok ? "✓ " : "✗ ") + check.label);
       }
+      const unpaid = data.selectedTasks.filter(task => !["paid", "simulated"].includes(task.payout.status));
+      const reason = task => task.acceptedAt === null ? "Task not accepted" : task.status === "assigned" ? "Work not submitted" :
+        task.status === "submitted" ? "Awaiting your review" : taskStatus(task);
+      replaceEntries(layer(content, "Now"), '[data-layer="r"]', unpaid, (row, task) =>
+        slots(row, [initials(task.workerName), task.workerName + " · " + money(task.amount), reason(task), "Waiting"]), "No payments are waiting.");
       if (capabilities.aiSummary && data.project) {
         const button = document.createElement("button");
         button.type = "button";
@@ -409,62 +395,35 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
           (await api(workspace + "/projects/" + data.project.id + "/ai-summary", "POST")).summary));
         area.append(button);
       }
-      return;
     }
-    if (notifications.has(route)) return panelUnsupported(content, "No notifications. Notification delivery is unavailable.");
-    if (route === "c17" && data.task) {
-      match(content, [["Amara Okafor", data.task.workerName], ["AO", initials(data.task.workerName)],
-        ["Sew wedding outfits", data.task.title], [/^150 USDC$/, money(data.task.amount)]]);
-      for (const child of [...content.children].slice(1)) child.hidden = true;
-      empty(content, data.task.title + " · " + taskStatus(data.task) + " · " + money(data.task.amount));
-      return;
-    }
-    if (["c25", "c26", "c27", "c28", "c30"].includes(route)) {
-      const status = data.task?.payout;
-      panelUnsupported(content, status ? payoutStatus(status) + " · " + money(data.task.amount) : "No payout selected.");
-      if (status?.canReconcile && ["failed", "processing"].includes(status.status)) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "btn btn-sm";
-        button.textContent = "Check Stellar confirmation";
-        button.addEventListener("click", () => execute(button, async () => {
-          await api(workspace + "/projects/" + data.project.id + "/tasks/" + data.task.id + "/reconcile", "POST", {});
-          go("c29", data.project, data.task);
-          return "Stellar payment confirmed.";
-        }));
-        content.append(button);
-      }
-      if (data.agentLog?.length) {
-        const list = document.createElement("div");
-        list.setAttribute("aria-label", "Payout agent log");
-        content.append(list);
-        for (const entry of data.agentLog.filter(item => item.taskId === data.task?.id)) {
-          empty(list, new Date(entry.at).toLocaleString() + " · " + entry.message);
-          for (const check of entry.checks) empty(list, (check.ok ? "✓ " : "✗ ") + check.label);
-        }
-      }
-      return;
-    }
-    panelUnsupported(content, "This screen’s workflow is unavailable in the connected app.");
   }
 
   return {
     async start() {
       try {
-        user = await api("/session");
-        capabilities = await api(workspace + "/capabilities").catch(() => ({}));
+        adopt(await api("/session"));
+        await loadCapabilities();
       } catch (error) { if (error.status !== 401) startError = error.message; }
       started = true;
     },
     route(requested) {
       const token = requested.match(/^join-([\w-]{43})$/)?.[1];
       if (token && token !== ignoredToken && token !== invitationToken) saveInvitation(token);
-      if ((token && invitationToken) || requested === "a06") return "a06";
+      const joining = Boolean(token && invitationToken) || requested === "a06";
       if (!user) {
-        if (requested === "a07" && !draft.password) return "a02";
-        return ["a01", "a02", "a03", "a04", "a05", "a07"].includes(requested) ? requested : "a03";
+        if (joining) return "a06";
+        return publicRoutes.includes(requested) ? requested : "a03";
       }
-      if (["a08", "a09", "a10"].includes(requested)) return requested;
+      if (user.verificationRequired) return "a05";
+      if (!user.role) return "a07";
+      if (joining) return "a06";
+      if (!user.onboarded) {
+        if (["a08", "a09"].includes(requested) || (requested === "a07" && !user.invited)) return requested;
+        return invitationToken ? "a06" : "a08";
+      }
+      if (requested === "a08" || requested === "profile") return settingsRoutes[user.role];
+      if (requested === "a09") return settingsRoutes[user.role];
+      if (requested === "md07" && user.role === "client") return "d10";
       if (roleFor(requested) === user.role || (requested === "c16" && user.role === "client")) return requested;
       return roles[user.role].home;
     },
@@ -477,14 +436,17 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
       const normalized = baseRoute(route);
       if (currentView !== normalized) filter = "";
       currentView = normalized;
-      if (!user || !roleFor(normalized) || !started) return;
+      if (!isDashboard(normalized)) closeTour();
+      if (!canUse() || !roleFor(normalized) || !started) return;
       const query = params();
       const selected = query.get("project");
       const taskId = query.get("task");
       try {
         const projects = await api(workspace + "/projects");
         if (!isCurrent()) return;
-        data = context(projects, selected, taskId);
+        const feed = await api(workspace + "/notifications").catch(() => null);
+        if (!isCurrent()) return;
+        data = { ...context(projects, selected, taskId), feed };
         selectionNotice = data.selectionMissing ? "This project or task is unavailable. Choose a record from the list." : "";
         if (!taskId && !data.task) data.task = (normalized === "c21" || normalized === "mc08" ? data.review[0] :
           normalized === "d06" || normalized === "md05" ? data.confirmations[0] :
@@ -528,73 +490,27 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
         for (const task of tasks) add(task.title, taskRoute, task.project, task);
       });
     },
-    openProfile() { go("a08"); },
-    logout(button) { execute(button, logout); },
+    openSettings,
+    logout(button) { execute(button, () => logout()); },
+    saveAppearance(value) {
+      if (canUse()) api("/preferences", "PUT", { appearance: value }).then(adopt).catch(error => announce(error.message));
+    },
     handle(button, labelText, displayed, scope, target, authoredLayer) {
       const route = baseRoute(displayed);
       const label = clean(labelText).toLowerCase();
       const value = name => fieldValue(screen, name);
-      const { project, task, projects, ready } = data;
+      const { project, task, projects } = data;
       const base = project && workspace + "/projects/" + project.id;
-      const taskPath = task && base + "/tasks/" + task.id;
       const missing = message => { notice(layer(screen, "Modal") || layer(screen, "Content") || scope, message); announce(message); return true; };
       const run = (operation, check = false) => {
         if (!check || validateFields(layer(screen, "Modal") || screen)) execute(button, operation);
         return true;
       };
-      const afterAuth = async registered => {
-        capabilities = await api(workspace + "/capabilities").catch(() => ({}));
-        if (invitationToken) go("a06");
-        else if (registered) { onboarding = true; go("a08"); }
-        else home();
-      };
-      if (route === "a02" && label === "create account") {
-        draft = { name:value("Full name"), email:value("Email address"), password:screen.querySelector('[aria-label="Create a password"]')?.value };
-        if (!invitationToken) { go("a07"); return true; }
-        return run(async () => {
-          user = await api("/register", "POST", { ...draft, invitationToken });
-          draft = {};
-          await afterAuth(true);
-        }, true);
-      }
-      if (route === "a07" && label === "continue") return run(async () => {
-        const role = screen.querySelector('[data-demo-role][aria-checked="true"]')?.dataset.demoRole;
-        if (!role || !draft.password) throw new Error("Choose an account role first.");
-        user = await api("/register", "POST", { ...draft, role });
-        draft = {};
-        await afterAuth(true);
-      });
-      if (route === "a03" && label === "log in" && button.hasAttribute("data-submit")) return run(async () => {
-        user = await api("/login", "POST", { email:value("Email address"), password:screen.querySelector('[aria-label="Password"]')?.value });
-        await afterAuth(false);
-      }, true);
-      if (route === "a03" && label.includes("login code")) return missing("WhatsApp login is unavailable. Use your password.");
-      if (route === "a04" && label === "send reset link") return run(async () =>
-        (await api("/forgot", "POST", { email:value("Email address") })).message, true);
-      if (route === "a05") {
-        if (target === "a03" || target === "@back") return false;
-        return missing("Account verification is unavailable. No message was sent.");
-      }
       if (route === "a06" && label === "join project") return run(() => respond("accept"));
-      if (route === "a08") {
-        if (label === "continue") return run(async () => {
-          user = await api("/profile", "PUT", { name:value("Profile name"), stellarAddress:value("Public Stellar wallet") });
-          if (onboarding) go("a09");
-          else home();
-        }, true);
-        if (label === "skip for now") { if (onboarding) go("a09"); else home(); return true; }
-      }
-      if (route === "a09" && /skip|continue|enable|turn on|finish setup/.test(label)) {
-        go("a10");
-        return true;
-      }
-      if (route === "a10" && /go to dashboard|start exploring|got it|continue/.test(label)) {
-        onboarding = false;
-        home();
-        return true;
-      }
-      if (target === "@logout" || (user && /^(sign out|log out)$/.test(label))) return run(logout);
-      if (!user || (!roleFor(route) && !["a08","a09","a10"].includes(route))) return false;
+      if (target === "@logout" || (user && /^(sign out|log out)$/.test(label))) return run(() => logout());
+      if (!canUse() || !roleFor(route)) return false;
+      if (authoredLayer === "Help") { beginTour(); return true; }
+      if (target === "@settings") { openSettings(); return true; }
 
       if (["@theme", "@light", "@dark", "@system", "@role-menu", "@settings", "@back"].includes(target)) return false;
       if (/close|^cancel$/.test(label) || authoredLayer === "Close") {
@@ -663,66 +579,7 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
         go("c10", project);
         return "Expense recorded.";
       }, true);
-      if (["c19", "mc07"].includes(route) && /send (?:task )?to|create task/.test(label)) return run(async () => {
-        if (!base) throw new Error("Choose a project first.");
-        const { id } = await api(base + "/tasks", "POST", { workerId:value("Assign to"), title:value("Task title"),
-          description:value("Task description"), allocation:cents(value("Agreed payment (USDC)")),
-          clientApprovalRequired:!!screen.querySelector('[data-live-field="Client confirmation"]')?.checked });
-        go("c20", project, { id });
-        return "Task assigned.";
-      }, true);
-      const sendTask = route === "w05" || route === "mw06";
-      const reviewTask = route === "c21" || route === "mc08";
-      const confirmTask = route === "d06" || route === "md05";
-      if (sendTask && label.includes("submit for review")) return run(async () => {
-        if (!taskPath) throw new Error("Choose a task first.");
-        await api(taskPath + "/submission", "POST", { notes:value("Submission notes or work link") });
-        go("w06", project, task);
-        return "Work submitted.";
-      }, true);
-      if (reviewTask && /approve|request changes/.test(label)) return run(async () => {
-        if (!taskPath) throw new Error("Choose a submitted task first.");
-        const approved = /^approve/.test(label);
-        await api(taskPath + "/review", "POST", { decision:approved ? "approved" : "rejected", notes:value("Review notes") });
-        go("c23", project, task);
-        return approved ? "Work approved." : "Changes requested.";
-      });
-      if (confirmTask && /^confirm|^approve/.test(label)) return run(async () => {
-        if (!taskPath) throw new Error("Choose a deliverable first.");
-        await api(taskPath + "/confirm", "POST", {});
-        home();
-        return "Deliverable confirmed.";
-      });
-      if (route === "c24" && /^authorize/.test(label)) return run(async () => {
-        const payout = task || ready[0];
-        if (!payout || !base) throw new Error("No payout is eligible.");
-        const pin = value("Payout PIN") || value("Create a 6-digit payout PIN");
-        if (!/^\d{6}$/.test(pin)) throw new Error("Enter your 6-digit payout PIN.");
-        if (!capabilities.payoutPinSet) {
-          await api(workspace + "/pin", "PUT", { pin });
-          capabilities.payoutPinSet = true;
-        }
-        try { await api(base + "/tasks/" + payout.id + "/payout", "POST", { pin }); }
-        catch (error) {
-          if (error.status === 502) go("c27", project, payout);
-          throw error;
-        }
-        go("c29", project, payout);
-        return project.mode === "preview" ? "Simulated payout. No funds moved." : "Stellar payment verified.";
-      });
-      if (["w03", "mw05"].includes(route) && /^accept/.test(label)) return run(async () => {
-        if (!taskPath) throw new Error("Choose a task first.");
-        await api(taskPath + "/accept", "POST", { decision: "accept" });
-        go("w04", project, task);
-        return "Task and agreed payment accepted.";
-      }, true);
-      if (["w03", "mw05"].includes(route) && /^(decline|reject)/.test(label)) return run(async () => {
-        if (!taskPath) throw new Error("Choose a task first.");
-        await api(taskPath + "/accept", "POST", { decision: "decline", reason: value("Reason") || undefined });
-        home();
-        return "Task declined.";
-      }, true);
-      if (["Tab", "Chip"].includes(authoredLayer) && (routeGroups.tasks.has(route) || routeGroups.payments.has(route) || ["c15","mc06"].includes(route))) {
+      if (["Tab", "Chip"].includes(authoredLayer) && (routeGroups.tasks.has(route) || routeGroups.payments.has(route) || ["c15","mc06","mc09"].includes(route))) {
         filter = label;
         render();
         return true;
@@ -733,7 +590,6 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
         return true;
       }
       if (target === "@home" || (authoredLayer === "Logo" && user)) { home(); return true; }
-      if (/profile|payout wallet/.test(label) && route === "c33") { go("a08"); return true; }
       return missing("This action is unavailable in the connected app.");
     },
 
@@ -742,47 +598,59 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
       const content = layer(screen, "Content");
       const form = layer(screen, "Form");
       if (route === "a01") match(screen, [["Lagos Wedding Decoration", "Sample project · Lagos Wedding Decoration"]]);
-      if (["a02", "a03", "a04"].includes(route)) {
-        if (route === "a02") input(form, "Full name", { required:true });
-        input(form, "Email address", { oldLabel:"Email or WhatsApp number", type:"email", required:true });
-        const hint = layer(form, "h") || form;
-        match(hint, [[/Use your email or WhatsApp/, "Use your email address."],
-          [/We’ll send a reset link/, "Password recovery is unavailable without a delivery service."]]);
-        form?.querySelector('[data-figma="31:351"]')?.parentElement.remove();
-        if (route === "a04") labelAction(action(form, /send reset link/i), "Check recovery availability");
-        if (startError) notice(form || screen, startError);
-      }
-      if (route === "a05") {
-        match(form, [[/Demo code/, "Verification delivery is unavailable. No message was sent."], ["Show demo code", "Delivery unavailable"]]);
-        for (const field of form.querySelectorAll("input")) field.disabled = true;
+      if (route === "a01") match(screen, [[/^Works with WhatsApp/, "In English · WhatsApp updates are not available yet"]]);
+      if (route === "a07") match(screen, [[/^You can join other projects/, "Pick the role that matches how you work."]]);
+      if (rendersAuth(route) && (user || publicRoutes.includes(route))) {
+        const invitation = route === "a02" && invitationToken
+          ? api(workspace + "/invitations/lookup", "POST", { token: invitationToken }).catch(() => null) : null;
+        renderAuth(screen, route, { user, signedIn, finished, invitation, problem: startError,
+          updated: adopt, go, signOut: next => logout(next).catch(error => announce(error.message)) });
+        return;
       }
       if (route === "a06") invitationControls(form);
-      if (route === "a08" && user) configureProfile(screen, user, onboarding);
-      if (route === "a09" && form) {
-        for (const item of form.querySelectorAll('input,select,[role="switch"]')) item.disabled = true;
-        match(form, [["How should we reach you?", "Notification preferences"], [/Agreements and payments always stay/, "Notification delivery is unavailable. Continue to your dashboard."],
-          [/Task invites, reminders|Receipts and weekly|Always on|Only if WhatsApp/, "Unavailable"]]);
+      if (!canUse() || !roleFor(route)) return;
+      if (rendersTask(route)) {
+        // Phone frames without a content area are rebuilt by the task screen itself.
+        bindIdentity(screen, user, data);
+        renderTask(screen, route, { user, data, capabilities, problem: startError || selectionNotice, roleHome: roles[user.role].home,
+          home, open: (destination, project, task) => go(destination, project || data.project, task) });
+        return;
       }
-      if (route === "a10" && user) {
-        const sidebar = layer(screen, "Sidebar");
-        if (sidebar && user.role !== "contractor") sidebar.hidden = true;
-        match(content, [[/^Welcome, Tola!/, "Welcome, " + user.name.split(/\s+/)[0] + "!"],
-          [/Workers accept before/, "Workers can view and submit their tasks."], [/By WhatsApp or email|They get a secure link/, "Share a private invitation manually."],
-          [/Once work is approved/, "The agent checks the budget, approvals and payment history before an authorized payout."]]);
-        if (user.role !== "contractor") {
-          const list = layer(content, "Checklist");
-          for (const item of [...(list?.children || [])].slice(1)) item.hidden = true;
-          empty(list, user.role === "worker" ? "Open your dashboard to see assigned work and payments." : "Open your dashboard to create or fund a project.");
-        }
-        labelAction(action(content, /^got it$/i), "Go to dashboard");
-      }
-      if (!user || !roleFor(route) || !content) return;
+      if (!content) return;
       if (route === "c16" && user.role === "client") {
         layer(screen, "Sidebar").hidden = true;
         const body = layer(screen, "Main");
         if (body) body.setAttribute("aria-label", "Client invitation");
       }
       bindIdentity(screen, user, data);
+      const bell = layer(screen, "Bell");
+      if (bell && !layer(bell, "icon/check")) {
+        const unread = data.feed?.unread || 0;
+        for (const dot of [...bell.children].slice(1)) dot.remove();
+        bell.classList.toggle("ps-unread", unread > 0);
+        bell.setAttribute("aria-label", unread ? "Notifications, " + unread + " unread" : "Notifications");
+      }
+      for (const item of layers(screen, "Sidebar item")) {
+        if (paragraphs(item)[0]?.textContent !== "Notifications") continue;
+        const badge = layer(item, "Count");
+        if (!badge) continue;
+        badge.hidden = !data.feed?.unread;
+        put(paragraphs(badge)[0], data.feed?.unread);
+      }
+      if (isSettings(route)) {
+        renderSettings(content, { route, user, capabilities, tab: params().get("tab"), appearance, setAppearance,
+          updated: adopt, logout: control => execute(control, () => logout()), startTour: () => { home(); setTimeout(beginTour, 250); } });
+        return;
+      }
+      if (notifications.has(route)) {
+        renderNotifications(content, { feed: data.feed, role: user.role, refresh: () => render(),
+          settingsHref: "#/" + settingsRoutes[user.role] + "?tab=notifications",
+          open: (destination, item) => {
+            const project = data.projects.find(entry => entry.id === item.projectId);
+            go(destination, project, item.taskId ? { id: item.taskId } : undefined);
+          } });
+        return;
+      }
       if (!isDashboard(route)) for (const title of paragraphs(layer(content, "Page header"))) {
         title.textContent = title.textContent.replaceAll("Lagos Wedding Decoration", data.project?.name || "Projects");
       }
@@ -791,17 +659,24 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
       else if (routeGroups.projects.has(route)) bindProjects(screen, route, data);
       else if (routeGroups.tasks.has(route)) bindTaskList(content, route, data, filter);
       else if (routeGroups.budgets.has(route)) bindBudget(content, route, data);
-      else if (routeGroups.approvals.has(route)) bindApprovals(content, route, data);
+      else if (routeGroups.approvals.has(route)) bindApprovals(content, route, data, filter);
       else if (routeGroups.payments.has(route)) bindPayments(content, route, data, filter);
-      else if (routeGroups.taskDetails.has(route)) bindTaskDetail(screen, route, data);
       else if (workerAllocation.has(route)) bindAllocation(content);
       else if (["c15", "mc06"].includes(route)) workers(route, content);
-      else if (route === "c16") { if (user.role === "contractor") workers("c15", content); else panelUnsupported(content, "Create a private invitation link."); }
+      else if (route === "c16") { if (user.role === "contractor") workers("c15", content); else {
+        // A client invites from the funding page, so the worker list behind the pop-up is not theirs.
+        for (const child of content.children) child.hidden = true;
+      } }
       else if (route === "c14") bindBudget(content, "c10", data);
       else if (!forms.has(route)) bindOther(route, content);
       if (forms.has(route)) configureForm(screen, route, data, user, { capabilities, draft, create:params().has("create") });
       routeActions(route, content);
-      if (routeGroups.tasks.has(route) || routeGroups.payments.has(route) || ["c15", "mc06"].includes(route)) {
+      tidy(screen, route, user, data);
+      if (isDashboard(route) && user.onboarded && user.tourPending && !tourOpen()) {
+        // Wait for the finished screen so the tour can point at its navigation.
+        setTimeout(() => { if (user?.tourPending && screen.dataset.route.startsWith(displayed) && !tourOpen()) beginTour(); }, 150);
+      }
+      if (routeGroups.tasks.has(route) || routeGroups.payments.has(route) || ["c15", "mc06", "mc09"].includes(route)) {
         const tabs = layer(content, "Tabs") || layer(content, "Chips") || layer(content, "Filters");
         for (const chip of [...(tabs?.children || [])]) {
           if (chip.querySelector("input")) continue;
@@ -816,7 +691,7 @@ export function liveApplication({ screen, render, roleFor, roles, announce }) {
               if (event.key === " " || event.key === "Enter") { event.preventDefault(); select(); }
             });
           }
-          const selected = filter ? filter.startsWith(caption) : caption === "all";
+          const selected = filter ? clean(filter).toLowerCase().startsWith(caption) : caption === (route === "mc09" ? "ready" : "all");
           chip.setAttribute("aria-pressed", String(selected));
           const indicator = layer(chip, "Indicator");
           if (indicator) indicator.classList.toggle("f45", selected);
