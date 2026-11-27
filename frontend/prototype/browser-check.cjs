@@ -138,7 +138,8 @@ try {
  await page.keyboard.press("Escape");
  await page.setViewportSize({width:390,height:844});
  await go("d01","md01");await click("Payments");await wait("d08");
- await page.getByRole("button",{name:"Client menu"}).click();
+ // Phones open the role menu from the tab bar.
+ await page.locator('#screen [data-layer="Bottom nav item"]:visible').filter({hasText:"More"}).click();
  const menu=page.getByRole("dialog",{name:"Client navigation"});
  assert.equal(await menu.getByRole("link",{name:"Worker allocations"}).count(),1);
  assert.equal(await menu.getByRole("link",{name:"My allocation"}).count(),0);
@@ -160,9 +161,10 @@ try {
   assert.ok(layout.documentWidth <= width);
   assert.equal(layout.clippedSidebarItem, false);
  }
- for(const name of ["login","signup","forgot","verify"]){
-  await page.goto(base+name+".html");
-  if(["login","signup"].includes(name)) assert.ok(await page.getByRole("button",{name:"Show password"}).count());
+ // The old standalone pages forward to the app's screens.
+ for(const [name,route] of [["login","a03"],["signup","a02"],["forgot","a04"],["verify","a05"]]){
+  const response=await fetch(base+name+".html");
+  assert.ok((await response.text()).includes("prototype.html?app=1#/"+route),name);
  }
  assert.deepEqual(errors,[]);assert.deepEqual(bad,[]);
  console.log("Browser interactions passed: password and reset, code entry and paste, accept/decline invitation, role navigation, dialog focus, validation, filters, theme and five viewport widths.");
