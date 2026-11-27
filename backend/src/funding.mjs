@@ -13,9 +13,9 @@ export function usdcUnits(amount) {
   return BigInt(whole) * 10_000_000n + BigInt(fraction.padEnd(7, "0"));
 }
 
-export async function horizon(path = "/", get = fetch) {
+export async function horizon(path = "/", get = fetch, options = {}) {
   const result = await get(`https://horizon-testnet.stellar.org${path}`, {
-    signal: AbortSignal.timeout(12_000), redirect: "error",
+    ...options, signal: AbortSignal.timeout(12_000), redirect: "error",
   });
   if (result.status === 404) throw projectError("Stellar has not found this record yet", 422);
   if (!result.ok) throw projectError("Stellar testnet lookup failed", 503);

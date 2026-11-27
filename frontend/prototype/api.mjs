@@ -1,8 +1,8 @@
-export async function api(path, method = "GET", body) {
+export async function api(path, method = "GET", body, signal) {
   let response;
   try {
     response = await fetch("/api" + path, {
-      method, credentials: "same-origin", cache: "no-store",
+      method, signal, credentials: "same-origin", cache: "no-store",
       ...(body !== undefined && { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
     });
   } catch {

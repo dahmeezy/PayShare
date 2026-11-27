@@ -1,5 +1,6 @@
 import { action, empty, initials, labelAction, layer, layers, match, money, number,
   put, replaceEntries, slots } from "./live-elements.mjs";
+import { bindWalletFunding } from "./wallet-funding.mjs";
 
 export function input(root, label, options = {}) {
   const candidates = [...(root?.querySelectorAll("input,select,textarea") || [])];
@@ -154,17 +155,18 @@ export function configureForm(screen, route, data, user, options) {
     } else {
       match(content, [[/Lagos Wedding Decoration/, project.name], ["Tola Adeyemi", project.members?.find(m => m.role === "contractor")?.name || "Not linked"],
         ["13 Dec 2026", "—"], ["1,000.00", number(remaining)], ["1,000.00 USDC", money(project.budget)],
-        ["Covered", "—"], [/You’ll confirm in your wallet/, project.mode === "preview" ? "Simulation only. No funds move." : "Enter the hash after sending the testnet deposit."]]);
+        ["Covered", project.mode === "preview" ? "—" : "Paid in test XLM"],
+        [/You’ll confirm in your wallet/, project.mode === "preview" ? "Simulation only. No funds move." : "Approve each payment in Freighter on Stellar Testnet."]]);
       const breakdown = layers(content, "Breakdown row");
       [project.totals.expenses, project.compensation, project.totals.worker_pool].forEach((value, i) => slots(breakdown[i],
         [undefined, (project.budget ? Math.round(100 * value / project.budget) : 0) + "%", money(value)]));
-      input(pay, "Funding amount (USDC)", { type: "number", required: true, value: String(remaining / 100), before: button });
-      removeLayers(pay, ["Wallet"]);
+      const amount = input(pay, "Funding amount (USDC)", { type: "number", required: true, value: String(remaining / 100), before: button });
       if (project.mode === "testnet") {
-        empty(pay, "Send one Stellar testnet USDC transfer to " + project.payer + " with hash memo " + project.fundingMemo + ".", button);
-        input(pay, "Stellar transaction hash", { required: true, value: "", before: button });
+        bindWalletFunding(pay, project, button, amount, input);
+      } else {
+        removeLayers(pay, ["Wallet"]);
+        labelAction(button, "Record simulated funding");
       }
-      labelAction(button, project.mode === "preview" ? "Record simulated funding" : "Verify testnet deposit");
     }
     if (creatable) {
       removeLayers(content, ["Agreement"]);

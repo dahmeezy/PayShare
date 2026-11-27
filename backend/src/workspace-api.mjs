@@ -11,7 +11,8 @@ import { projectError } from "./project-store.mjs";
 import { notificationsFor } from "./notifications.mjs";
 import { requireSession } from "./session.mjs";
 import { getUserById, readUsers, writeUsers } from "./users-store.mjs";
-import { funded, projectBudget, readWorkspace, updateWorkspace } from "./workspace-store.mjs";
+import { funded, projectBudget, readWorkspace, reservedFunding, updateWorkspace } from "./workspace-store.mjs";
+import { registerWalletFunding } from "./wallet-funding.mjs";
 
 const now = () => new Date().toISOString();
 const fundingMemo = id => createHash("sha256").update("PayShare:" + id).digest("base64");
@@ -25,6 +26,20 @@ function amount(value, minimum = 1) {
     throw projectError("Enter a valid USDC amount with up to two decimal places");
   }
   return value;
+}
+
+function recordFunding(state, project, deposit) {
+  if (deposit.transaction) {
+    if (Date.parse(deposit.confirmed_at) < Math.floor(Date.parse(project.createdAt) / 1000) * 1000) {
+      throw projectError("This deposit predates the project", 422);
+    }
+    if (state.projects.some(entry => entry.funding.some(receipt => receipt.transaction === deposit.transaction) ||
+        entry.tasks.some(task => [task.payout.tx, task.payout.candidateTx].includes(deposit.transaction)))) {
+      throw projectError("That transaction has already been recorded", 409);
+    }
+  }
+  if (funded(project) + deposit.amount > project.budget) throw projectError("Funding exceeds the project budget", 409);
+  project.funding.push(deposit);
 }
 
 function date(value) {
@@ -90,12 +105,14 @@ function publicProject(saved, user) {
   return {
     ...summary, budget: project.budget, compensation: project.compensation, expenses: project.expenses,
     payer: project.payer, fundingMemo: project.payer ? fundingMemo(project.id) : null, funded: funded(project), funding: project.funding,
+    ...(role === "client" && { walletFunding: project.walletFunding }),
     totals: projectBudget(project), members: project.members,
     invitations: project.invitations.map(({ email, role, status, expiresAt }) => ({ email, role, status, expiresAt })),
   };
 }
 
-export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingTransfer, aiStatus = null) {
+export function createWorkspaceRouter(settlement, verifyFunding, aiStatus = null, fundingHorizon) {
+  verifyFunding ??= (hash, request, payer) => verifyFundingTransfer(hash, request, payer, fundingHorizon);
   const router = express.Router();
   router.use(express.json({ limit: "16kb" }));
   router.use((_req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
@@ -161,7 +178,9 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
   router.put(projectPath + "/budget", mutate(["contractor"], (project, req) => {
     project.budget = amount(req.body?.budget);
     project.compensation = amount(req.body?.compensation, 0);
-    if (project.budget < funded(project)) throw projectError("The budget cannot be lower than existing funding");
+    if (project.budget < funded(project) + reservedFunding(project)) {
+      throw projectError("The budget cannot be lower than existing or pending funding");
+    }
     checkBudget(project);
     return projectBudget(project);
   }));
@@ -172,6 +191,7 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
   }));
   router.post(projectPath + "/funding", endpoint(async (req, res) => {
     const snapshot = projectFor(await readWorkspace(), req.params.projectId, req.user.id, ["client"]);
+    if (reservedFunding(snapshot)) throw projectError("Check the existing wallet funding request before recording manual funding.", 409);
     const cents = amount(req.body?.amount);
     let deposit = { amount: cents, transaction: null, confirmed_at: now() };
     if (snapshot.mode === "testnet") {
@@ -181,25 +201,20 @@ export function createWorkspaceRouter(settlement, verifyFunding = verifyFundingT
         throw projectError("Set your public Stellar wallet and enter the testnet deposit transaction hash");
       }
       deposit = { amount: cents, ...await verifyFunding(transaction.toLowerCase(), { funding_address: address, amount: cents, memo: fundingMemo(snapshot.id) }, snapshot.payer) };
-      if (Date.parse(deposit.confirmed_at) < Math.floor(Date.parse(snapshot.createdAt) / 1000) * 1000) {
-        throw projectError("This deposit predates the project", 422);
-      }
     } else if (req.body?.transaction) {
       throw projectError("Preview funding does not accept blockchain receipts");
     }
     const project = await updateWorkspace(state => {
       const project = projectFor(state, snapshot.id, req.user.id, ["client"]);
-      if (deposit.transaction && state.projects.some(entry =>
-        entry.funding.some(receipt => receipt.transaction === deposit.transaction) ||
-        entry.tasks.some(task => [task.payout.tx, task.payout.candidateTx].includes(deposit.transaction)))) {
-        throw projectError("That transaction has already been recorded", 409);
-      }
-      if (funded(project) + cents > project.budget) throw projectError("Funding exceeds the project budget", 409);
-      project.funding.push(deposit);
+      if (reservedFunding(project)) throw projectError("Check the existing wallet funding request before recording manual funding.", 409);
+      recordFunding(state, project, deposit);
       return project;
     });
     res.json(publicProject(project, req.user));
   }));
+  registerWalletFunding(router, projectPath + "/funding/wallet", {
+    projectFor, amount, fundingMemo, recordFunding, verifyFunding, get: fundingHorizon,
+  });
 
   router.post(projectPath + "/invitations", mutate(["client", "contractor"], (project, req) => {
     const role = req.body?.role;

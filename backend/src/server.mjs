@@ -1,6 +1,6 @@
 // The paid API (the "resource server" in the four boxes).
 // Every route in PAID_ROUTES costs USDC per request; everything else is free.
-// This server never touches the blockchain: the facilitator verifies and settles each payment on Stellar.
+// The facilitator settles the workshop's paid requests. Project funding uses a client-signed Stellar payment.
 import express from "express";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { StrKey } from "@stellar/stellar-sdk";
@@ -151,6 +151,9 @@ export function createApp(settings = config, payment = {}, mailer = createMailer
   // ── Auth routes ────────────────────────────────────────────
   app.disable("x-powered-by");
   app.get("/", (_req, res) => res.redirect("/frontend/prototype.html?app=1"));
+  app.get("/frontend/prototype/freighter.js", (_req, res) => {
+    res.sendFile(fileURLToPath(import.meta.resolve("@stellar/freighter-api")));
+  });
   app.use("/frontend", express.static(fileURLToPath(new URL("../../frontend", import.meta.url)), { index: false }));
   app.use("/api", (req, res, next) => {
     // Browsers include Origin on cross-site writes. The session cookie is also SameSite=Strict.
@@ -160,7 +163,8 @@ export function createApp(settings = config, payment = {}, mailer = createMailer
     }
     next();
   });
-  app.use("/api/workspace", createWorkspaceRouter(payment.settlement || createSettlement(settings), payment.verifyFunding, createAiStatus(settings)));
+  app.use("/api/workspace", createWorkspaceRouter(payment.settlement || createSettlement(settings),
+    payment.verifyFunding, createAiStatus(settings), payment.fundingHorizon));
   app.use("/api", createAuthRouter(mailer));
 
   app.use("/api", moneyRouter);

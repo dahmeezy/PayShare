@@ -11,6 +11,11 @@ const money = value => Number.isSafeInteger(value) && value > 0 && value <= 1_00
 const unavailable = () => projectError("Workspace history is missing or damaged. Restore it before continuing.", 503);
 
 export const funded = project => project.funding.reduce((sum, entry) => sum + entry.amount, 0);
+export function reservedFunding(project) {
+  const attempt = project.walletFunding;
+  return attempt?.status === "pending" || (attempt?.status === "prepared" && attempt.expiresAt > Date.now())
+    ? attempt.amount : 0;
+}
 export function projectBudget(project) {
   const { tasks } = project;
   return budgetBreakdown({
@@ -38,6 +43,16 @@ function validate(state) {
           (entry.transaction && hashes.has(entry.transaction))) throw unavailable();
       if (entry.transaction) hashes.add(entry.transaction);
     }
+    if (project.walletFunding !== undefined) {
+      const attempt = project.walletFunding;
+      if (mode !== "testnet" || !attempt || !hash(attempt.hash) || !money(attempt.amount) ||
+          typeof attempt.source !== "string" || !StrKey.isValidEd25519PublicKey(attempt.source) || attempt.source === project.payer ||
+          !Number.isSafeInteger(attempt.expiresAt) || attempt.expiresAt <= 0 ||
+          !["prepared", "pending", "confirmed", "failed"].includes(attempt.status) ||
+          (attempt.status === "confirmed" && !funding.some(entry => entry.transaction === attempt.hash && entry.amount === attempt.amount))) {
+        throw unavailable();
+      }
+    }
     for (const task of tasks) {
       const payout = task.payout;
       if (ids.has(task.id) || !money(task.amount) || !["assigned", "submitted", "approved", "rejected", "declined", "cancelled"].includes(task.status) ||
@@ -58,7 +73,8 @@ function validate(state) {
     }
     try {
       const totals = projectBudget(project);
-      if (funded(project) > project.budget || (tasks.length > 0 && totals.allocated + totals.expenses + totals.contractor_comp > funded(project))) {
+      if (funded(project) + reservedFunding(project) > project.budget ||
+          (tasks.length > 0 && totals.allocated + totals.expenses + totals.contractor_comp > funded(project))) {
         throw unavailable();
       }
     } catch { throw unavailable(); }

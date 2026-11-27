@@ -49,7 +49,7 @@ On shared projects (an event, a build, a creative job) one person usually collec
 | Area | What you get |
 | --- | --- |
 | **Projects and budget** | Create a project, set the budget, record contractor pay and expenses, and see what has been allocated to workers and what remains. |
-| **Funding** | The client records funding in simulation mode or proves a real Stellar testnet USDC payment. PayShare checks the network, issuer, amount, source, destination and memo. |
+| **Funding** | The client can fund a Stellar testnet project directly with Freighter. Simulation and advanced manual funding are also available. PayShare verifies the network, issuer, amount, source, destination and memo before updating the project. |
 | **Verified sign-up** | First and last name, a password strength guide and agreement to the draft [Terms](frontend/legal/terms.html) and [Privacy Policy](frontend/legal/privacy.html). A 6-digit emailed code (10 minutes, 5 attempts, resend after 60 seconds) unlocks the account. |
 | **Onboarding and tour** | Role (skipped for invited people), profile and notification choices, then straight to the dashboard with a short role-specific tour. |
 | **Settings and notifications** | Profile, appearance, notification, security and wallet settings for every role, and an in-app notification feed built from project records. |
@@ -307,11 +307,15 @@ Without both values PayShare sends nothing, tells the person delivery is unavail
 
 - **Simulation projects** run the whole flow, including the agent checks, PIN and receipts, but move no money. Receipts say **Simulated · No funds moved**.
 - **Stellar testnet projects:**
-  1. The client saves a public Stellar account in **Your profile** and sends one classic USDC payment to the displayed funding account, using the project's hash memo. They then enter the amount and transaction hash in **Fund project**. PayShare verifies it and rejects reused transactions.
+  1. The client opens **Fund project** in a browser with Freighter, switches Freighter to **Testnet**, and selects **Connect Freighter**. PayShare shows the connected public address and available testnet USDC. The client enters the amount, selects **Fund project**, and approves the transfer in Freighter. PayShare submits it and updates the project only after verifying it on Stellar. Connecting leaves the public address saved in the PayShare profile as it was.
   2. The worker saves a public Stellar account before the task is assigned.
   3. After every approval, the contractor authorizes the payout with the PIN. PayShare checks the budget and history, reserves one attempt, and asks the facilitator to verify and settle. It marks the payout **paid** only after finding the exact USDC transfer on-chain. If the result is uncertain, the payout stays locked until it is reconciled.
 
-The payer needs test XLM and a USDC trustline. Get test USDC from the [Circle faucet](https://faucet.circle.com). For facilitator errors, see [backend/docs/troubleshooting.md](backend/docs/troubleshooting.md).
+The client needs an activated testnet wallet, a Circle USDC trustline, test USDC and enough test XLM for the network fee. The project funding account also needs a Circle USDC trustline. [Freighter](https://freighter.app/) · [Circle testnet faucet](https://faucet.circle.com) · [Facilitator troubleshooting](backend/docs/troubleshooting.md)
+
+If a wallet payment is pending, use **Check transaction status**. PayShare keeps the same transaction hash across refreshes and blocks a second funding attempt until Stellar confirms it or the ledger passes its expiry without recording it. An expired request, including one rejected for an outdated sequence number, can be prepared again with the latest account sequence.
+
+If Freighter is unavailable, including on phones without a compatible wallet extension, open **Advanced manual funding** on the same screen. Save the sending wallet's public address in **Your profile** and send one classic testnet USDC payment to the address shown, using the displayed project hash memo. Enter the amount and transaction hash and select **Verify testnet deposit**.
 
 ## Testing
 
@@ -337,7 +341,7 @@ Browser regression checks (verification, settings, notifications, role limits, a
 PLAYWRIGHT_MODULE="$(pwd)/node_modules/playwright" node ../frontend/test/regression.cjs
 ```
 
-The browser tests use an in-memory email double, so they need no credentials. The browser test registers all three roles, then runs invitations, funding, the budget, task acceptance, submission, approval, the PIN and the payout. It also checks that the dashboards fill the screen with no horizontal scrolling at 360, 390, 430, 768, 1024, 1440 and 1920px.
+The browser tests use in-memory email, Freighter and Stellar testnet doubles. They require no service credentials or funded wallets. They cover all three roles, simulation and wallet funding, and the project flow through payout. They also check the dashboards for horizontal scrolling at 360, 390, 430, 768, 1024, 1440 and 1920px.
 
 CI runs the backend and navigation tests and the attribution check on every pull request.
 

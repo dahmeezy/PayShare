@@ -145,6 +145,64 @@ async function invite(page, email, role) {
   return link;
 }
 
+async function walletFunding(client, origin, address, passphrase, ledger) {
+  await client.setViewportSize({ width: mobile ? 390 : 1440, height: 900 });
+  await client.goto(origin + "/frontend/prototype.html?app=1#/d09?create=1");
+  await route(client, "d09");
+  await client.getByLabel("Project name").fill("Wallet funding demo");
+  await client.getByLabel("Project budget (USDC)").fill("100");
+  await client.getByLabel("Project mode").selectOption("testnet");
+  await show(client, "Create project");
+  const connect = client.getByRole("button", { name: "Connect Freighter" });
+  await connect.click();
+  await client.getByText(/Open this page in a browser with Freighter/).waitFor();
+  await client.addInitScript(({ address, passphrase }) => {
+    window.freighterApi = {
+      isConnected: async () => ({ isConnected: true }),
+      getNetwork: async () => ({ networkPassphrase: window.usePublicNetwork ? "Public Global Stellar Network ; September 2015" : passphrase }),
+      requestAccess: async () => ({ address }),
+      getAddress: async () => ({ address }),
+      signTransaction: async (xdr, options) => window.denyFunding
+        ? { error: "declined" } : { signerAddress: address, signedTxXdr: await window.signFunding(xdr, options) },
+    };
+  }, { address, passphrase });
+  await client.reload();
+  await route(client, "d09");
+  const fund = client.getByRole("button", { name: "Fund project", exact: true });
+  await client.evaluate(() => { window.usePublicNetwork = true; });
+  await connect.click();
+  await client.getByText("Switch Freighter to Stellar Testnet and try again.").waitFor();
+  assert.ok(await fund.isDisabled());
+  await client.evaluate(() => { window.usePublicNetwork = false; });
+  await connect.click();
+  await client.getByText(address, { exact: true }).waitFor();
+  await client.getByText("Available: 100.12345 testnet USDC").waitFor();
+  await fits(client, "connected wallet address");
+  await client.getByLabel("Funding amount (USDC)").fill("25");
+  await client.evaluate(() => { window.denyFunding = true; });
+  await fund.click();
+  await client.getByText(/wallet approval was cancelled/i).waitFor();
+  assert.equal(ledger.submissions.length, 0);
+  await client.evaluate(() => { window.denyFunding = false; });
+  ledger.visible = false;
+  ledger.outcome = "timeout";
+  await fund.click();
+  await client.getByRole("button", { name: "Check transaction status" }).waitFor();
+  assert.ok(await fund.isDisabled());
+  assert.equal(ledger.submissions.length, 1);
+  await client.reload();
+  await client.getByText(/Payment pending/).waitFor();
+  await client.locator("summary").getByText("Advanced manual funding").click();
+  assert.ok(await client.getByRole("button", { name: "Verify testnet deposit" }).isDisabled());
+  ledger.visible = true;
+  await client.getByRole("button", { name: "Check transaction status" }).click();
+  await client.getByText("Funding successful. Stellar verified the USDC payment.").waitFor();
+  await client.getByText("Project funded: 25 USDC of 100 USDC.").waitFor();
+  assert.equal(ledger.submissions.length, 1);
+  assert.ok(await client.getByLabel("Stellar transaction hash").isVisible());
+  await fits(client, "wallet funding");
+}
+
 async function main() {
   const tmp = await mkdtemp(join(tmpdir(), "payshare-browser-"));
   process.env.PAYSHARE_WORKSPACE_FILE = join(tmp, "workspace.json");
@@ -160,9 +218,13 @@ async function main() {
   try {
     await (await source("workspace-store.mjs")).initializeWorkspace();
     const { createApp } = await source("server.mjs");
-    ({ testMailer: mailer } = await import(pathToFileURL(join(backend, "test/helpers.mjs")).href));
-    mailer = mailer();
-    server = createApp(undefined, {}, mailer).listen(0, "127.0.0.1");
+    const { testMailer, testFundingLedger } = await import(pathToFileURL(join(backend, "test/helpers.mjs")).href);
+    const { Keypair, TransactionBuilder } = await import(pathToFileURL(require.resolve("@stellar/stellar-sdk", { paths: [backend] })).href);
+    const { TESTNET_PASSPHRASE } = await source("funding.mjs");
+    const sender = Keypair.random();
+    const ledger = testFundingLedger(sender.publicKey());
+    mailer = testMailer();
+    server = createApp(undefined, { settlement: { payer: Keypair.random().publicKey() }, fundingHorizon: ledger.get }, mailer).listen(0, "127.0.0.1");
     await once(server, "listening");
     const origin = "http://127.0.0.1:" + server.address().port;
     browser = await chromium.launch({ executablePath: process.env.BROWSER_EXECUTABLE });
@@ -347,10 +409,18 @@ async function main() {
     await worker.getByLabel("Password", { exact: true }).fill(password);
     await worker.getByRole("button", { name: "Log in", exact: true }).click();
     await route(worker, "w01");
+    await client.exposeFunction("signFunding", (xdr, options) => {
+      assert.deepEqual(options, { address: sender.publicKey(), networkPassphrase: TESTNET_PASSPHRASE });
+      const tx = TransactionBuilder.fromXDR(xdr, TESTNET_PASSPHRASE);
+      tx.sign(sender);
+      return tx.toXDR();
+    });
+    await walletFunding(client, origin, sender.publicKey(), TESTNET_PASSPHRASE, ledger);
     assert.deepEqual(browserErrors, []);
     assert.deepEqual(badAssets, []);
     console.log((mobile ? "Mobile" : "Desktop") + " browser MVP passed: three roles, invitations, funding, expense, budget, assignment, submission, approval, simulation, refresh and sign-out.");
     console.log("All three dashboards fill the screen at 360, 390, 430, 768, 1024, 1440 and 1920 px. No browser exceptions or broken frontend assets.");
+    console.log("Wallet funding passed with Freighter and Horizon doubles: connect, decline, sign, reload pending, verify and update balance.");
   } catch (error) {
     if (process.env.PAYSHARE_BROWSER_DEBUG) {
       for (const page of pages) {
