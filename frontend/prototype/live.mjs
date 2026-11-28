@@ -556,9 +556,10 @@ export function liveApplication({ screen, render, roleFor, roles, announce, setA
           go("d09", result);
           return "Project created.";
         }
-        await api(base + "/funding", "POST", { amount:cents(value("Funding amount (USDC)")), transaction:value("Stellar transaction hash") || undefined });
+        if (project.mode !== "preview") return;
+        await api(base + "/funding", "POST", { amount:cents(value("Funding amount (USDC)")) });
         go("d04", project);
-        return project.mode === "preview" ? "Simulated funding recorded." : "Testnet funding verified.";
+        return "Simulated funding recorded.";
       }, true);
       if (["c05", "c16"].includes(route) && /send.*invite/.test(label)) return run(async () => {
         const chosen = projects.find(p => p.id === value("Project")) || project;

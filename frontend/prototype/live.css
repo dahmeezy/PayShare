@@ -47,6 +47,12 @@
 .workspace-live [aria-busy="true"].demo-action { opacity: .6; cursor: wait; }
 .workspace-live [data-layer="App bar"] .live-outline { flex-shrink: 0; }
 .workspace-live .hidden-live-sample { display: none !important; }
+.funding-wallet { align-items: flex-start; }
+.funding-wallet-info { flex: 1; min-width: 0; }
+.funding-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.funding-manual { width: 100%; }
+.funding-manual summary { cursor: pointer; font-size: 14px; font-weight: 600; }
+.funding-manual .live-field { margin-block: 8px; }
 
 /* Keep authored fixed columns scrollable when a desktop table is used on a narrow screen. */
 @media (max-width: 1200px) {

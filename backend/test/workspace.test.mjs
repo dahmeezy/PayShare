@@ -4,10 +4,11 @@ import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { Keypair, StrKey, nativeToScVal, xdr } from "@stellar/stellar-sdk";
+import { Keypair, StrKey, TransactionBuilder, nativeToScVal, xdr } from "@stellar/stellar-sdk";
 import express from "express";
 import request from "supertest";
-import { testMailer } from "./helpers.mjs";
+import { testFundingLedger, testMailer } from "./helpers.mjs";
+import { TESTNET_PASSPHRASE, TESTNET_USDC_ISSUER } from "../src/funding.mjs";
 
 const password = "isolated-test-password";
 const prefix = "/api/workspace";
@@ -361,6 +362,81 @@ test("integrated workspace API keeps sessions, budgets, approvals and money reco
     await approve(group, next);
     for (let i = 0; i < 5; i++) await contractor.agent.post(next + "/payout").send({ pin: "111111" }).expect(403);
     await contractor.agent.post(next + "/payout").send({ pin: PIN }).expect(429);
+  });
+  await t.test("wallet funding reserves a signed testnet payment and reconciles uncertain results by hash", async t => {
+    const payer = Keypair.random().publicKey();
+    const sender = Keypair.random();
+    const address = sender.publicKey();
+    const ledger = testFundingLedger(address);
+    const online = fixture.createApp(undefined, { settlement: { payer }, fundingHorizon: ledger.get });
+    const { client, contractor, base, project } = await team(online, "testnet", { client: address }, "Wallet");
+    const url = base + "/funding/wallet";
+    const post = (route, body) => client.agent.post(url + "/" + route).send(body ?? {});
+    await request(online).get("/frontend/prototype/freighter.js").expect(200).expect(/freighterApi/);
+    await request(online).post(url + "/balance").send({ address }).expect(401);
+    await contractor.agent.post(url + "/prepare").send({ address, amount: 8000 }).expect(403);
+    await post("balance", { address: payer }).expect(400);
+    await post("balance", { address }).expect(200, { address, balance: "100.12345", trustline: true });
+    await post("prepare", { address, amount: 10001 }).expect(409);
+    const { body: first } = await post("prepare", { address, amount: 8000 }).expect(200);
+    const tx = TransactionBuilder.fromXDR(first.xdr, TESTNET_PASSPHRASE);
+    assert.equal(tx.signatures.length, 0);
+    assert.equal(tx.source, address);
+    assert.equal(tx.sequence, "124");
+    assert.equal(tx.fee, "250");
+    assert.equal(tx.memo.type, "hash");
+    assert.equal(tx.memo.value.toString("base64"), project.fundingMemo);
+    assert.equal(tx.operations.length, 1);
+    assert.equal(tx.operations[0].type, "payment");
+    assert.equal(tx.operations[0].destination, payer);
+    assert.equal(tx.operations[0].asset.code, "USDC");
+    assert.equal(tx.operations[0].asset.issuer, TESTNET_USDC_ISSUER);
+    assert.equal(tx.operations[0].amount, "80.0000000");
+    await post("prepare", { address, amount: 1000 }).expect(409);
+    await contractor.agent.put(base + "/budget").send({ budget: 7999, compensation: 0 }).expect(400);
+    await client.agent.post(base + "/funding").send({ amount: 8000, transaction: first.attempt.hash }).expect(409);
+    await post("submit", { xdr: first.xdr }).expect(400);
+    tx.sign(sender);
+
+    ledger.visible = false;
+    ledger.outcome = "timeout";
+    const result = await post("submit", { xdr: tx.toXDR() }).expect(200);
+    assert.equal(result.body.attempt.status, "pending");
+    assert.equal(result.body.funded, 0);
+    assert.equal((await post("cancel", { hash: first.attempt.hash }).expect(200)).body.attempt.status, "pending");
+    await post("submit", { xdr: tx.toXDR() }).expect(200);
+    assert.deepEqual(ledger.submissions, [first.attempt.hash]);
+    await post("prepare", { address, amount: 1000 }).expect(409);
+    ledger.visible = true;
+    ledger.operations[0].asset_issuer = payer;
+    assert.equal((await post("status").expect(200)).body.attempt.status, "pending");
+    ledger.operations[0].asset_issuer = TESTNET_USDC_ISSUER;
+    const { body: confirmed } = await post("status").expect(200);
+    assert.equal(confirmed.attempt.status, "confirmed");
+    assert.equal(confirmed.funded, 8000);
+    await client.agent.post(base + "/funding").send({ amount: 8000, transaction: first.attempt.hash }).expect(409);
+    assert.equal((await post("status").expect(200)).body.funded, 8000);
+
+    const { body: second } = await post("prepare", { address, amount: 2000 }).expect(200);
+    const stale = TransactionBuilder.fromXDR(second.xdr, TESTNET_PASSPHRASE);
+    ledger.sequence += 1; // Another wallet operation used the sequence before this payment reached Stellar.
+    stale.sign(sender);
+    ledger.outcome = "bad-sequence";
+    assert.equal((await post("submit", { xdr: stale.toXDR() }).expect(200)).body.attempt.status, "pending");
+    const clock = t.mock.method(Date, "now", () => second.attempt.expiresAt + 10_000);
+    try {
+      ledger.closedAt = new Date(second.attempt.expiresAt - 1000).toISOString();
+      assert.equal((await post("status").expect(200)).body.attempt.status, "pending");
+      ledger.closedAt = new Date(second.attempt.expiresAt + 1000).toISOString();
+      assert.equal((await post("status").expect(200)).body.attempt.status, "failed");
+      const { body: retry } = await post("prepare", { address, amount: 2000 }).expect(200);
+      assert.equal(TransactionBuilder.fromXDR(retry.xdr, TESTNET_PASSPHRASE).sequence, String(ledger.sequence + 1));
+      assert.notEqual(retry.attempt.hash, second.attempt.hash);
+      assert.equal((await post("cancel", { hash: retry.attempt.hash }).expect(200)).body.attempt.status, "failed");
+      assert.deepEqual(ledger.submissions, [first.attempt.hash, second.attempt.hash]);
+    } finally {
+      clock.mock.restore();
+    }
   });
   await t.test("notifications follow each role and can be marked as read", async () => {
     const group = await team(app, "preview", {}, "Notice");
